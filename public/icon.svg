@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="neonGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00f5c4" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#020708" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#051417" />
+      <stop offset="100%" stop-color="#010607" />
+    </linearGradient>
+    <linearGradient id="neonStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5c4" />
+      <stop offset="100%" stop-color="#14b8a6" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="url(#neonStroke)" stroke-width="8" stroke-opacity="0.4" />
+  <circle cx="256" cy="256" r="220" fill="url(#neonGlow)" />
+
+  <!-- Bird / Rooster Icon -->
+  <g transform="translate(106, 96) scale(0.6)" fill="none" stroke="#00f5c4" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Tail & Body -->
+    <path d="M 80 320 C 60 260, 90 180, 160 160 C 240 140, 320 180, 360 260 C 380 300, 370 360, 320 400 C 260 440, 150 430, 100 370 Z" fill="#00f5c4" fill-opacity="0.12" />
+    
+    <!-- Wing arc -->
+    <path d="M 180 260 Q 240 260 270 320 Q 220 350 170 320 Z" fill="#00f5c4" fill-opacity="0.25" stroke="#00f5c4" />
+
+    <!-- Neck & Head -->
+    <path d="M 280 180 C 290 140, 320 90, 360 90 C 400 90, 420 130, 410 170" />
+    
+    <!-- Comb -->
+    <path d="M 350 80 Q 360 40 380 60 Q 400 30 410 65 Q 430 45 435 80" stroke="#f43f5e" stroke-width="24" fill="#f43f5e" fill-opacity="0.2" />
+
+    <!-- Beak -->
+    <polygon points="415,120 465,135 415,155" fill="#f59e0b" stroke="#f59e0b" stroke-width="12" />
+
+    <!-- Wattle -->
+    <path d="M 405 165 C 415 185, 410 205, 395 205 C 385 205, 385 185, 395 170" fill="#f43f5e" stroke="#f43f5e" stroke-width="12" />
+
+    <!-- Eye -->
+    <circle cx="380" cy="120" r="10" fill="#ffffff" stroke="none" />
+    <circle cx="383" cy="120" r="5" fill="#020708" stroke="none" />
+
+    <!-- Legs -->
+    <line x1="220" y1="420" x2="210" y2="470" stroke-width="20" stroke="#00f5c4" />
+    <line x1="190" y1="470" x2="230" y2="470" stroke-width="20" stroke="#00f5c4" />
+    
+    <line x1="280" y1="410" x2="280" y2="470" stroke-width="20" stroke="#00f5c4" />
+    <line x1="260" y1="470" x2="300" y2="470" stroke-width="20" stroke="#00f5c4" />
+  </g>
+</svg>

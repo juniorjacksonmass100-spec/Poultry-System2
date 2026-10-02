@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "KukuTrack Poultry Business Management",
+  "short_name": "KukuTrack",
+  "description": "Production-ready poultry business management platform for flock inventory, egg production, brooding, feed expenses, sales, and financial reporting.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020708",
+  "theme_color": "#00f5c4",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
