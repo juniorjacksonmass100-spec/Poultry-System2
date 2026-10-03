@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useToast } from '../../context/ToastContext';
 import { PoultryNews, UserProfile, PoultryStock, EggProduction, BroodingRecord } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
 import {
@@ -45,6 +46,7 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
   const { t, lang } = useLanguage();
   const { user, isAdmin, profile } = useAuth();
   const { theme } = useTheme();
+  const { notify } = useToast();
 
   const isLight = theme === 'light';
   const isSw = lang === 'sw';
@@ -193,8 +195,9 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
       setTitle('');
       setContent('');
       setTargetUserId('broadcast');
-    } catch {
-      // Quiet failover
+    } catch (err: any) {
+      // Keep the form open so nothing the admin typed is lost, and say what went wrong
+      notify('error', err?.message || (isSw ? 'Imeshindwa kutuma habari.' : 'Could not post the news.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -206,6 +209,10 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
     try {
       await onDeleteNews(deleteTargetId);
       setDeleteTargetId(null);
+      notify('success', isSw ? 'Habari imefutwa kwa kila mtu.' : 'Message deleted for everyone.');
+    } catch (err: any) {
+      setDeleteTargetId(null);
+      notify('error', err?.message || (isSw ? 'Imeshindwa kufuta.' : 'Could not delete the message.'));
     } finally {
       setIsDeleting(false);
     }

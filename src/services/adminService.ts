@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
 import { UserProfile, UserRole } from '../types';
 import { logActivity } from './activityService';
+import { getActiveOwnerId } from '../lib/scope';
 
 export const fetchAllUsers = async (): Promise<UserProfile[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
@@ -56,13 +57,52 @@ export const toggleUserStatus = async (
   );
 };
 
+/**
+ * Permanently deletes a user: their login, profile and ALL of their data.
+ * Runs as a protected database function (admins only).
+ */
 export const deleteUserProfile = async (userId: string): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  const { error } = await supabase.from('profiles').delete().eq('id', userId);
-  if (error) throw error;
+  const { error } = await supabase.rpc('admin_delete_user', { target_user_id: userId });
+  if (error) {
+    if (String(error.message).toLowerCase().includes('could not find the function')) {
+      throw new Error('Please run the latest SQL migration (002_user_isolation_and_news.sql) in Supabase first.');
+    }
+    throw new Error(error.message);
+  }
+};
 
-  await logActivity('User Profile Deleted', 'profiles', userId);
+export interface UserSummary {
+  user_id: string;
+  flock_count: number;
+  egg_record_count: number;
+  brooding_count: number;
+  expense_count: number;
+  sale_count: number;
+}
+
+/** Record counts per user for the admin user list. Quietly empty if the SQL migration has not been run. */
+export const fetchUserSummaries = async (): Promise<Record<string, UserSummary>> => {
+  if (!isSupabaseConfigured || !supabase) return {};
+  try {
+    const { data, error } = await supabase.rpc('admin_user_summaries');
+    if (error || !Array.isArray(data)) return {};
+    const map: Record<string, UserSummary> = {};
+    for (const row of data) {
+      map[row.user_id] = {
+        user_id: row.user_id,
+        flock_count: Number(row.flock_count),
+        egg_record_count: Number(row.egg_record_count),
+        brooding_count: Number(row.brooding_count),
+        expense_count: Number(row.expense_count),
+        sale_count: Number(row.sale_count),
+      };
+    }
+    return map;
+  } catch {
+    return {};
+  }
 };
 
 export const executeDatabaseReset = async (
@@ -78,6 +118,7 @@ export const executeDatabaseReset = async (
 
   const { data, error } = await supabase.rpc('reset_business_database', {
     confirmation_phrase: confirmationPhrase,
+    target_owner: getActiveOwnerId(),
   });
 
   if (error) {

@@ -1,13 +1,18 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
 import { PoultryStock } from '../types';
 import { logActivity } from './activityService';
+import { getActiveOwnerId, requireOwnerId } from '../lib/scope';
+import { deleteRowOrThrow } from '../lib/db';
 
 export const fetchPoultryStocks = async (): Promise<PoultryStock[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
+  const ownerId = getActiveOwnerId();
+  if (!ownerId) return [];
   try {
     const { data, error } = await supabase
       .from('poultry_stock')
       .select('*')
+      .eq('owner_id', ownerId)
       .order('date_acquired', { ascending: false });
 
     if (error) {
@@ -25,6 +30,7 @@ export const createPoultryStock = async (
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
   const { data: { user } } = await supabase.auth.getUser();
+  const ownerId = await requireOwnerId();
   const currentQuantity = Math.max(0, stock.initial_quantity - stock.mortality - stock.sold_quantity);
 
   const { data, error } = await supabase
@@ -32,6 +38,7 @@ export const createPoultryStock = async (
     .insert([
       {
         ...stock,
+        owner_id: ownerId,
         current_quantity: currentQuantity,
         created_by: user?.id || null,
       },
@@ -129,6 +136,7 @@ export const recordMortality = async (
   const { data: { user } } = await supabase.auth.getUser();
   await supabase.from('poultry_movements').insert([
     {
+      owner_id: stock.owner_id || (await requireOwnerId()),
       stock_id: stockId,
       movement_type: 'mortality',
       quantity: deadCount,
@@ -149,8 +157,7 @@ export const recordMortality = async (
 export const deletePoultryStock = async (id: string): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  const { error } = await supabase.from('poultry_stock').delete().eq('id', id);
-  if (error) throw error;
+  await deleteRowOrThrow('poultry_stock', id);
 
   await logActivity('Poultry Batch Deleted', 'poultry_stock', id);
 };

@@ -1,13 +1,18 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
 import { EggProduction } from '../types';
 import { logActivity } from './activityService';
+import { getActiveOwnerId, requireOwnerId } from '../lib/scope';
+import { deleteRowOrThrow } from '../lib/db';
 
 export const fetchEggProductions = async (): Promise<EggProduction[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
+  const ownerId = getActiveOwnerId();
+  if (!ownerId) return [];
   try {
     const { data, error } = await supabase
       .from('egg_production')
       .select('*')
+      .eq('owner_id', ownerId)
       .order('production_date', { ascending: false });
 
     if (error) {
@@ -25,6 +30,7 @@ export const createOrUpdateEggProduction = async (
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
   const { data: { user } } = await supabase.auth.getUser();
+  const ownerId = await requireOwnerId();
   const remaining = Math.max(
     0,
     record.eggs_collected -
@@ -40,12 +46,13 @@ export const createOrUpdateEggProduction = async (
     .upsert(
       {
         ...record,
+        owner_id: ownerId,
         remaining_eggs: remaining,
         total_egg_revenue: revenue,
         recorded_by: user?.id || null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'production_date' }
+      { onConflict: 'owner_id,production_date' }
     )
     .select()
     .single();
@@ -70,8 +77,7 @@ export const createOrUpdateEggProduction = async (
 export const deleteEggProduction = async (id: string): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  const { error } = await supabase.from('egg_production').delete().eq('id', id);
-  if (error) throw error;
+  await deleteRowOrThrow('egg_production', id);
 
   await logActivity('Egg Production Record Deleted', 'egg_production', id);
 };

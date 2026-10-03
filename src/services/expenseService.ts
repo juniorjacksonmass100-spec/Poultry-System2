@@ -1,6 +1,8 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
 import { Expense, ExpenseCategory } from '../types';
 import { logActivity } from './activityService';
+import { getActiveOwnerId, requireOwnerId } from '../lib/scope';
+import { deleteRowOrThrow } from '../lib/db';
 
 const DEFAULT_CATEGORIES: ExpenseCategory[] = [
   { id: '1', name: 'Feed', is_system: true, created_at: '' },
@@ -20,10 +22,12 @@ const DEFAULT_CATEGORIES: ExpenseCategory[] = [
 
 export const fetchExpenseCategories = async (): Promise<ExpenseCategory[]> => {
   if (!isSupabaseConfigured || !supabase) return DEFAULT_CATEGORIES;
+  const ownerId = getActiveOwnerId();
   try {
-    const { data, error } = await supabase
-      .from('expense_categories')
-      .select('*')
+    // Built-in categories are shared (owner_id is null); custom ones belong to one user
+    let query = supabase.from('expense_categories').select('*');
+    query = ownerId ? query.or(`owner_id.is.null,owner_id.eq.${ownerId}`) : query.is('owner_id', null);
+    const { data, error } = await query
       .order('name', { ascending: true });
 
     if (error) {
@@ -39,9 +43,10 @@ export const fetchExpenseCategories = async (): Promise<ExpenseCategory[]> => {
 export const createExpenseCategory = async (name: string): Promise<ExpenseCategory> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
+  const ownerId = await requireOwnerId();
   const { data, error } = await supabase
     .from('expense_categories')
-    .insert([{ name: name.trim(), is_system: false }])
+    .insert([{ name: name.trim(), is_system: false, owner_id: ownerId }])
     .select()
     .single();
 
@@ -57,10 +62,13 @@ export const createExpenseCategory = async (name: string): Promise<ExpenseCatego
 
 export const fetchExpenses = async (): Promise<Expense[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
+  const ownerId = getActiveOwnerId();
+  if (!ownerId) return [];
   try {
     const { data, error } = await supabase
       .from('expenses')
       .select('*')
+      .eq('owner_id', ownerId)
       .order('expense_date', { ascending: false });
 
     if (error) {
@@ -78,12 +86,14 @@ export const createExpense = async (
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
   const { data: { user } } = await supabase.auth.getUser();
+  const ownerId = await requireOwnerId();
 
   const { data, error } = await supabase
     .from('expenses')
     .insert([
       {
         ...expense,
+        owner_id: ownerId,
         recorded_by: user?.id || null,
       },
     ])
@@ -129,8 +139,7 @@ export const updateExpense = async (
 export const deleteExpense = async (id: string): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  const { error } = await supabase.from('expenses').delete().eq('id', id);
-  if (error) throw error;
+  await deleteRowOrThrow('expenses', id);
 
   await logActivity('Expense Deleted', 'expenses', id);
 };

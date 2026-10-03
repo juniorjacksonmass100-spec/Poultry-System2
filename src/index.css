@@ -66,3 +66,139 @@
   font-variant-numeric: tabular-nums;
 }
 
+
+/* ==========================================================================
+   TEXT SIZE (Small / Medium / Large) - works on the website and in the app.
+   Tailwind builds every text-xs / text-sm / ... class from these variables, so
+   changing them here resizes the text everywhere without touching layout.
+   Medium (the default) is Tailwind's normal sizing.
+   ========================================================================== */
+html[data-fs="small"] {
+  --text-xs: 0.675rem;
+  --text-sm: 0.7875rem;
+  --text-base: 0.9rem;
+  --text-lg: 1.0125rem;
+  --text-xl: 1.125rem;
+  --text-2xl: 1.35rem;
+  --text-3xl: 1.6875rem;
+  --text-4xl: 2.025rem;
+}
+html[data-fs="large"] {
+  --text-xs: 0.9rem;
+  --text-sm: 1.05rem;
+  --text-base: 1.2rem;
+  --text-lg: 1.35rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.8rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 2.7rem;
+}
+/* The app also uses a few fixed pixel sizes; scale those too */
+html[data-fs="small"] [class*="text-[9px]"]  { font-size: 8.1px; }
+html[data-fs="small"] [class*="text-[10px]"] { font-size: 9px; }
+html[data-fs="small"] [class*="text-[11px]"] { font-size: 9.9px; }
+html[data-fs="large"] [class*="text-[9px]"]  { font-size: 10.8px; }
+html[data-fs="large"] [class*="text-[10px]"] { font-size: 12px; }
+html[data-fs="large"] [class*="text-[11px]"] { font-size: 13.2px; }
+/* Form fields do not inherit page text size by default */
+input, select, textarea { font-size: inherit; }
+
+/* ==========================================================================
+   NEWS TICKER - constant reading speed (duration is set from the text length)
+   ========================================================================== */
+@keyframes kuku-ticker {
+  from { transform: translateX(var(--ticker-from, 100%)); }
+  to   { transform: translateX(var(--ticker-to, -100%)); }
+}
+.kuku-ticker-track {
+  animation-name: kuku-ticker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* ==========================================================================
+   BUTTON PRESS FEEL - every button reacts to touch and click
+   ========================================================================== */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition-property: color, background-color, border-color, box-shadow, scale, filter, opacity, transform;
+  transition-duration: 160ms;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
+  scale: 0.94;
+  filter: brightness(1.15);
+  transition-duration: 70ms;
+}
+@media (hover: hover) {
+  button:not(:disabled):hover { filter: brightness(1.07); }
+}
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+button:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid var(--neon-aqua);
+  outline-offset: 2px;
+}
+
+.kuku-ripple {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.28;
+  scale: 0;
+  animation: kuku-ripple 560ms ease-out forwards;
+}
+@keyframes kuku-ripple {
+  to { scale: 1; opacity: 0; }
+}
+
+/* Refresh icon spin */
+@keyframes kuku-spin { to { transform: rotate(360deg); } }
+.kuku-spin { animation: kuku-spin 0.8s linear infinite; }
+
+/* ==========================================================================
+   ENTRANCE ANIMATIONS - pages, cards, dialogs, menus, toasts
+   ========================================================================== */
+@keyframes kuku-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes kuku-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kuku-zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes kuku-slide-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes kuku-toast-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.kuku-tab-enter { animation: kuku-fade-up 300ms ease-out both; }
+.kuku-toast { animation: kuku-toast-in 220ms ease-out both; }
+
+/* The dialogs in this app already use these class names */
+.animate-in { animation: kuku-fade-in 160ms ease-out both; }
+.animate-in.zoom-in-95 { animation-name: kuku-zoom-in; }
+.animate-in.slide-in-from-left { animation-name: kuku-slide-left; animation-duration: 220ms; }
+
+/* Gentle lift on cards that contain data */
+@media (hover: hover) {
+  .kuku-lift { transition: translate 180ms ease, box-shadow 180ms ease; }
+  .kuku-lift:hover { translate: 0 -2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .kuku-ticker-track { animation: none !important; }
+}

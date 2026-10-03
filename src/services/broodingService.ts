@@ -1,6 +1,8 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
 import { BroodingRecord, BroodingStatus } from '../types';
 import { logActivity } from './activityService';
+import { getActiveOwnerId, requireOwnerId } from '../lib/scope';
+import { deleteRowOrThrow } from '../lib/db';
 
 export const calculateExpectedHatchDate = (startDate: string, incubationDays: number): string => {
   const start = new Date(startDate);
@@ -10,10 +12,13 @@ export const calculateExpectedHatchDate = (startDate: string, incubationDays: nu
 
 export const fetchBroodingRecords = async (): Promise<BroodingRecord[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
+  const ownerId = getActiveOwnerId();
+  if (!ownerId) return [];
   try {
     const { data, error } = await supabase
       .from('brooding_records')
       .select('*')
+      .eq('owner_id', ownerId)
       .order('start_date', { ascending: false });
 
     if (error) {
@@ -31,6 +36,7 @@ export const createBroodingRecord = async (
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
   const { data: { user } } = await supabase.auth.getUser();
+  const ownerId = await requireOwnerId();
   const expectedDate = calculateExpectedHatchDate(record.start_date, record.incubation_days);
 
   const { data, error } = await supabase
@@ -38,6 +44,7 @@ export const createBroodingRecord = async (
     .insert([
       {
         ...record,
+        owner_id: ownerId,
         expected_hatch_date: expectedDate,
         recorded_by: user?.id || null,
       },
@@ -89,8 +96,7 @@ export const updateBroodingRecord = async (
 export const deleteBroodingRecord = async (id: string): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  const { error } = await supabase.from('brooding_records').delete().eq('id', id);
-  if (error) throw error;
+  await deleteRowOrThrow('brooding_records', id);
 
   await logActivity('Brooding Record Deleted', 'brooding_records', id);
 };

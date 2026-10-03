@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import { UserProfile } from '../types';
 import { logActivity } from './activityService';
 
@@ -74,4 +75,25 @@ export const updateUserProfile = async (
 
   await logActivity('Profile Updated', 'profiles', userId, JSON.stringify(updates));
   return { success: true };
+};
+
+/**
+ * Creates the profile row for a signed-in user if it does not exist yet.
+ * The database only lets you create a profile for yourself, always as "staff";
+ * admin rights come from the database trigger / admin screen, never from here.
+ */
+export const ensureUserProfile = async (user: User): Promise<void> => {
+  if (!isSupabaseConfigured || !supabase) return;
+  try {
+    await supabase.from('profiles').insert([
+      {
+        id: user.id,
+        email: user.email || '',
+        full_name: user.user_metadata?.full_name || (user.email ? user.email.split('@')[0] : 'Farm User'),
+        phone: user.user_metadata?.phone || null,
+      },
+    ]);
+  } catch {
+    // Already exists or blocked - the caller falls back gracefully
+  }
 };

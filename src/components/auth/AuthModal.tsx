@@ -4,7 +4,8 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { AUTH_TRIGGER_FIX_SQL } from '../../lib/schemaSql';
-import { Shield, Lock, Mail, User, Phone, AlertCircle, CheckCircle2, ArrowRight, X, UserCheck, Copy, Check, Terminal } from 'lucide-react';
+import { Shield, Lock, Mail, User, Phone, AlertCircle, CheckCircle2, ArrowRight, X, UserCheck, Copy, Check, Terminal, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isTriggerError, setIsTriggerError] = useState(false);
   const [copiedTriggerSql, setCopiedTriggerSql] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [needsConfirm, setNeedsConfirm] = useState(false);
 
   if (!isOpen) return null;
 
@@ -44,11 +47,98 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  // Where the "reset password" email link should send the user back to.
+  // On the Android app window.location is not a real website, so set VITE_APP_URL to your Render address.
+  const getRedirectUrl = (): string => {
+    const configured = (import.meta.env.VITE_APP_URL as string | undefined)?.trim();
+    if (configured) return configured;
+    return window.location.origin;
+  };
+
+  const handleForgotPassword = async () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setErrorMessage(isSw ? 'Weka barua pepe yako hapo juu kwanza, kisha bonyeza "Umesahau nenosiri?".' : 'Type your email above first, then tap "Forgot password?".');
+      return;
+    }
+    if (!supabase) return;
+    if (Capacitor.isNativePlatform() && !(import.meta.env.VITE_APP_URL as string | undefined)) {
+      setErrorMessage(
+        isSw
+          ? 'Fungua tovuti ya KukuTrack kwenye kivinjari ili kubadili nenosiri, kisha rudi hapa uingie.'
+          : 'Open the KukuTrack website in your browser to reset your password, then come back here to sign in.'
+      );
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: getRedirectUrl() });
+      if (error) throw error;
+      setSuccessMessage(
+        isSw
+          ? `Tumetuma kiungo cha kubadili nenosiri kwa ${cleanEmail}. Angalia kikasha chako (na Spam).`
+          : `A password reset link was sent to ${cleanEmail}. Check your inbox (and Spam folder).`
+      );
+    } catch (err: any) {
+      setErrorMessage(friendlyAuthError(err?.message || '', 'signin'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!supabase) return;
+    setErrorMessage(null);
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim().toLowerCase() });
+      if (error) throw error;
+      setSuccessMessage(isSw ? 'Barua pepe ya uthibitisho imetumwa tena.' : 'Confirmation email sent again. Check your inbox.');
+    } catch (err: any) {
+      setErrorMessage(friendlyAuthError(err?.message || '', 'signin'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Turns raw Supabase errors into clear instructions
+  const friendlyAuthError = (raw: string, forMode: 'signin' | 'signup'): string => {
+    const msg = raw.toLowerCase();
+    if (msg.includes('invalid login credentials')) {
+      return isSw
+        ? 'Barua pepe au nenosiri si sahihi. Kama umesahau nenosiri, bonyeza "Umesahau nenosiri?" hapa chini.'
+        : 'Wrong email or password. If you forgot your password, tap "Forgot password?" below.';
+    }
+    if (msg.includes('email not confirmed')) {
+      return isSw
+        ? 'Barua pepe yako haijathibitishwa. Fungua barua pepe ya uthibitisho kwanza.'
+        : 'Your email is not confirmed yet. Open the confirmation email we sent you first.';
+    }
+    if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('already been registered')) {
+      return isSw
+        ? 'Akaunti yenye barua pepe hii tayari ipo. Ingia badala ya kujisajili, au bonyeza "Umesahau nenosiri?".'
+        : 'An account with this email already exists. Sign in instead, or tap "Forgot password?" if you cannot remember the password.';
+    }
+    if (msg.includes('rate limit') || msg.includes('too many') || msg.includes('seconds')) {
+      return isSw ? 'Majaribio mengi sana. Subiri dakika chache kisha ujaribu tena.' : 'Too many attempts. Please wait a few minutes and try again.';
+    }
+    if (msg.includes('password') && msg.includes('characters')) {
+      return isSw ? 'Nenosiri ni fupi mno.' : 'That password is too short.';
+    }
+    if (msg.includes('failed to fetch') || msg.includes('network')) {
+      return isSw ? 'Hakuna mtandao. Hakiki intaneti yako.' : 'Cannot reach the server. Check your internet connection.';
+    }
+    return raw || t.authError;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
     setIsTriggerError(false);
+    setNeedsConfirm(false);
 
     if (!isSupabaseConfigured || !supabase) {
       setErrorMessage(
@@ -59,12 +149,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
       setErrorMessage(isSw ? 'Tafadhali weka barua pepe na nenosiri.' : 'Please provide both email and password.');
       return;
     }
 
-    if (password.length < 6) {
+    if (mode === 'signup' && password.length < 6) {
       setErrorMessage(isSw ? 'Nenosiri lazima liwe na angalau herufi 6.' : 'Password must be at least 6 characters long.');
       return;
     }
@@ -73,48 +165,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     try {
       if (mode === 'signup') {
-        const assignedRole = isMasterAdmin(email.trim()) ? 'admin' : 'staff';
-
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: cleanEmail,
           password,
           options: {
+            emailRedirectTo: getRedirectUrl(),
             data: {
               full_name: fullName.trim() || undefined,
               phone: phone.trim() || undefined,
-              role: assignedRole,
             },
           },
         });
 
         if (error) throw error;
 
-        // Ensure profile exists in profiles table
-        if (data.user) {
-          try {
-            await supabase.from('profiles').upsert([
-              {
-                id: data.user.id,
-                email: email.trim(),
-                full_name: fullName.trim() || email.trim().split('@')[0],
-                phone: phone.trim() || null,
-                role: assignedRole,
-                is_active: true,
-              },
-            ]);
-          } catch {
-            // Handled by database trigger or silent failover
-          }
+        // Supabase hides "already registered" by returning a user with no identities
+        if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          setMode('signin');
+          setErrorMessage(friendlyAuthError('already registered', 'signup'));
+          return;
+        }
+
+        // Email confirmation is switched on in Supabase: no session until the link is clicked
+        if (!data.session) {
+          setNeedsConfirm(true);
+          setSuccessMessage(
+            isSw
+              ? 'Akaunti imeundwa! Fungua barua pepe yako na ubonyeze kiungo cha uthibitisho, kisha uingie.'
+              : 'Account created! Open the confirmation email we sent you, tap the link, then sign in.'
+          );
+          return;
+        }
+
+        // Save the phone number on the profile (never the role - roles are controlled by the database)
+        try {
+          await supabase
+            .from('profiles')
+            .update({
+              full_name: fullName.trim() || cleanEmail.split('@')[0],
+              phone: phone.trim() || null,
+            })
+            .eq('id', data.user!.id);
+        } catch {
+          // The profile is created by the database trigger either way
         }
 
         setSuccessMessage(t.signUpSuccess);
         setTimeout(async () => {
           await refreshProfile();
           if (onClose) onClose();
-        }, 1200);
+        }, 900);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: cleanEmail,
           password,
         });
 
@@ -125,9 +228,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
     } catch (err: any) {
       console.error('Auth submit error:', err);
-      const msg = err.message || '';
+      const msg = err?.message || '';
 
-      if (msg.includes('Database error saving new user') || msg.includes('500') || msg.includes('trigger')) {
+      if (msg.includes('Database error saving new user') || msg.includes('trigger')) {
         setIsTriggerError(true);
         setErrorMessage(
           isSw
@@ -135,7 +238,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             : 'Database error saving new user. Please update your Supabase Auth Trigger using the tool below.'
         );
       } else {
-        setErrorMessage(err.message || t.authError);
+        const friendly = friendlyAuthError(msg, mode);
+        setErrorMessage(friendly);
+        if (msg.toLowerCase().includes('email not confirmed')) setNeedsConfirm(true);
+        // "Already registered" while signing up -> take them to sign in
+        if (mode === 'signup' && /already (registered|exists|been registered)/i.test(msg)) {
+          setMode('signin');
+        }
       }
     } finally {
       setIsLoading(false);
@@ -358,6 +467,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <input
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@poultryfarm.co.tz"
@@ -373,16 +483,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             <div className="relative">
               <Lock className={`w-4 h-4 absolute left-3 top-2.5 ${isLight ? 'text-teal-600' : 'text-[#00f5c4]'}`} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
-                minLength={6}
+                minLength={mode === 'signup' ? 6 : undefined}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className={inputClass}
+                className={`${inputClass} pr-10`}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className={`absolute right-2.5 top-2 p-0.5 rounded ${isLight ? 'text-slate-500 hover:text-teal-700' : 'text-[#6fa5a0] hover:text-[#00f5c4]'}`}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {mode === 'signin' && (
+              <div className="mt-1.5 text-right">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isLoading}
+                  className={`inline-flex items-center gap-1 text-[11px] font-semibold ${isLight ? 'text-teal-700 hover:text-teal-900' : 'text-[#00f5c4] hover:text-[#7dffe3]'}`}
+                >
+                  <KeyRound className="w-3 h-3" />
+                  {isSw ? 'Umesahau nenosiri?' : 'Forgot password?'}
+                </button>
+              </div>
+            )}
           </div>
+
+          {needsConfirm && (
+            <button
+              type="button"
+              onClick={handleResendConfirmation}
+              disabled={isLoading}
+              className={`w-full py-2 text-[11px] font-bold rounded-lg border ${isLight ? 'border-teal-300 text-teal-800 bg-teal-50' : 'border-[#00f5c4]/40 text-[#00f5c4] bg-[#00f5c4]/10'}`}
+            >
+              {isSw ? 'Tuma barua pepe ya uthibitisho tena' : 'Resend confirmation email'}
+            </button>
+          )}
 
           <button
             type="submit"

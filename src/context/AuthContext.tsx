@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { setActiveOwnerId } from '../lib/scope';
 import { UserProfile, UserRole } from '../types';
-import { checkIsFirstRun, fetchUserProfile } from '../services/authService';
+import { checkIsFirstRun, fetchUserProfile, ensureUserProfile } from '../services/authService';
 
 export const MASTER_ADMIN_EMAIL = 'junior.jacksonmass100@gmail.com';
 
@@ -25,6 +26,14 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   checkFirstRunStatus: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Admin only: the user whose account the admin is currently looking at. */
+  viewAsUser: UserProfile | null;
+  setViewAsUser: (target: UserProfile | null) => void;
+  /** Whose data the app shows right now (the viewed user for an admin, otherwise me). */
+  effectiveOwnerId: string | null;
+  /** True after the user opened a password-reset email link. */
+  isRecoveringPassword: boolean;
+  finishPasswordRecovery: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,6 +46,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isFirstRun, setIsFirstRun] = useState<boolean>(false);
   const [isSchemaMissing, setIsSchemaMissing] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [viewAsUserState, setViewAsUserState] = useState<UserProfile | null>(null);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
 
   const currentUserRef = useRef<User | null>(null);
   currentUserRef.current = user;
@@ -67,40 +78,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isOwner = isMasterAdmin(email);
     const assignedRole: UserRole = isOwner ? 'admin' : 'staff';
 
+    const buildFallback = (): UserProfile => ({
+      id: targetUser.id,
+      email: email || 'user@poultryfarm.com',
+      full_name: targetUser.user_metadata?.full_name || (email ? email.split('@')[0] : 'Farm User'),
+      phone: targetUser.user_metadata?.phone || null,
+      role: assignedRole,
+      is_active: true,
+      preferred_language: 'en',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
     try {
-      const userProf = await fetchUserProfile(targetUser.id);
+      let userProf = await fetchUserProfile(targetUser.id);
+      if (!userProf) {
+        // No profile row yet (e.g. account made before the database trigger existed): create it
+        await ensureUserProfile(targetUser);
+        userProf = await fetchUserProfile(targetUser.id);
+      }
       if (userProf) {
-        // If master admin email, always ensure role is admin
         if (isOwner && userProf.role !== 'admin') {
-          userProf.role = 'admin';
+          userProf = { ...userProf, role: 'admin' };
         }
         setProfile(userProf);
       } else {
-        const fallback: UserProfile = {
-          id: targetUser.id,
-          email: email || 'user@poultryfarm.com',
-          full_name: targetUser.user_metadata?.full_name || (email ? email.split('@')[0] : 'Farm User'),
-          phone: targetUser.user_metadata?.phone || null,
-          role: assignedRole,
-          is_active: true,
-          preferred_language: 'en',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setProfile(fallback);
+        setProfile(buildFallback());
       }
     } catch {
-      setProfile({
-        id: targetUser.id,
-        email: email || 'user@poultryfarm.com',
-        full_name: targetUser.user_metadata?.full_name || (email ? email.split('@')[0] : 'Farm User'),
-        phone: null,
-        role: assignedRole,
-        is_active: true,
-        preferred_language: 'en',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      });
+      setProfile(buildFallback());
     }
   }, []);
 
@@ -110,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [loadProfileForUser]);
 
-  // Main Auth Setup - Runs ONCE on mount to prevent any infinite loop!
+  // Main Auth Setup - runs ONCE on mount
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
       setLoading(false);
@@ -119,12 +125,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let isMounted = true;
 
-    // Failsafe timeout: never allow app to freeze in loading state
+    // Failsafe: never leave the app stuck on the loading screen
     const timeoutId = setTimeout(() => {
       if (isMounted) setLoading(false);
-    }, 2000);
+    }, 4000);
 
-    // Initial session retrieval
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isMounted) return;
       setSession(session);
@@ -142,22 +147,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isMounted) setLoading(false);
     });
 
-    // Listen to Auth State Changes
+    // IMPORTANT: Supabase can deadlock if you call the database from inside this callback,
+    // so all follow-up work is pushed to the next tick with setTimeout.
     const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         if (!isMounted) return;
+
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
-        if (newSession?.user) {
-          setShowAuthModal(false);
-          await loadProfileForUser(newSession.user);
-          setIsFirstRun(false);
-        } else {
-          setProfile(null);
-          await checkFirstRunStatus();
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsRecoveringPassword(true);
         }
-        setLoading(false);
+
+        setTimeout(async () => {
+          if (!isMounted) return;
+          if (newSession?.user) {
+            setShowAuthModal(false);
+            await loadProfileForUser(newSession.user);
+            setIsFirstRun(false);
+          } else {
+            setProfile(null);
+            setViewAsUserState(null);
+            await checkFirstRunStatus();
+          }
+          if (isMounted) setLoading(false);
+        }, 0);
       }
     );
 
@@ -179,14 +194,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setSession(null);
     setProfile(null);
+    setViewAsUserState(null);
+    setIsRecoveringPassword(false);
     await checkFirstRunStatus();
   };
 
-  // Master admin email junior.jacksonmass100@gmail.com is ALWAYS admin
+  // The primary admin email is ALWAYS admin
   const isAdmin = Boolean(
-    isMasterAdmin(user?.email) || 
+    isMasterAdmin(user?.email) ||
     (profile?.role === 'admin' && profile?.is_active)
   );
+
+  // Only an admin can open someone else's account
+  const viewAsUser = isAdmin && viewAsUserState && viewAsUserState.id !== user?.id ? viewAsUserState : null;
+  const effectiveOwnerId = viewAsUser ? viewAsUser.id : user?.id ?? null;
+
+  // Services read this synchronously, so set it during render (before any child effect runs)
+  setActiveOwnerId(effectiveOwnerId);
+
+  const setViewAsUser = useCallback((target: UserProfile | null) => {
+    setViewAsUserState(target);
+  }, []);
+
+  const finishPasswordRecovery = useCallback(() => setIsRecoveringPassword(false), []);
 
   return (
     <AuthContext.Provider
@@ -204,6 +234,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshProfile,
         checkFirstRunStatus,
         signOut,
+        viewAsUser,
+        setViewAsUser,
+        effectiveOwnerId,
+        isRecoveringPassword,
+        finishPasswordRecovery,
       }}
     >
       {children}

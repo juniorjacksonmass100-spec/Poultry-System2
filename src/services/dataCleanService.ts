@@ -1,51 +1,38 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { requireOwnerId } from '../lib/scope';
 import { logActivity } from './activityService';
 
 /**
- * Service allowing users to clean up erroneous records in their accounts
+ * Lets a user remove wrongly-entered records from THEIR OWN account
+ * (or, for an admin viewing a user, from that user's account).
+ * Every delete is scoped to the active owner, so nobody else's data is touched.
  */
-
-export const clearPoultryStocks = async (): Promise<void> => {
-  if (!isSupabaseConfigured || !supabase) return;
-  const { error } = await supabase.from('poultry_stock').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) throw error;
-  await logActivity('Data Reset', 'poultry_stock', undefined, 'User cleared flock records');
+const clearTable = async (table: string, label: string): Promise<void> => {
+  if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
+  const ownerId = await requireOwnerId();
+  const { error } = await supabase.from(table).delete().eq('owner_id', ownerId);
+  if (error) throw new Error(error.message);
+  await logActivity('Data Reset', table, ownerId, `Cleared ${label} records`);
 };
 
-export const clearEggProductions = async (): Promise<void> => {
-  if (!isSupabaseConfigured || !supabase) return;
-  const { error } = await supabase.from('egg_production').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) throw error;
-  await logActivity('Data Reset', 'egg_production', undefined, 'User cleared egg production records');
-};
-
-export const clearBroodingRecords = async (): Promise<void> => {
-  if (!isSupabaseConfigured || !supabase) return;
-  const { error } = await supabase.from('brooding_records').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) throw error;
-  await logActivity('Data Reset', 'brooding_records', undefined, 'User cleared brooding records');
-};
-
-export const clearExpenses = async (): Promise<void> => {
-  if (!isSupabaseConfigured || !supabase) return;
-  const { error } = await supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) throw error;
-  await logActivity('Data Reset', 'expenses', undefined, 'User cleared expense records');
-};
-
-export const clearSales = async (): Promise<void> => {
-  if (!isSupabaseConfigured || !supabase) return;
-  const { error } = await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (error) throw error;
-  await logActivity('Data Reset', 'sales', undefined, 'User cleared sales records');
-};
+export const clearPoultryStocks = () => clearTable('poultry_stock', 'flock');
+export const clearEggProductions = () => clearTable('egg_production', 'egg production');
+export const clearBroodingRecords = () => clearTable('brooding_records', 'brooding');
+export const clearExpenses = () => clearTable('expenses', 'expense');
+export const clearSales = () => clearTable('sales', 'sales');
 
 export const clearAllUserData = async (): Promise<void> => {
-  await Promise.allSettled([
-    clearPoultryStocks(),
-    clearEggProductions(),
-    clearBroodingRecords(),
-    clearExpenses(),
-    clearSales(),
-  ]);
+  // Sales first (they point at flocks), flocks last
+  const steps = [clearSales, clearExpenses, clearEggProductions, clearBroodingRecords, clearPoultryStocks];
+  const failures: string[] = [];
+  for (const step of steps) {
+    try {
+      await step();
+    } catch (err: any) {
+      failures.push(err?.message || 'unknown error');
+    }
+  }
+  if (failures.length > 0) {
+    throw new Error(`Some records could not be cleared: ${failures[0]}`);
+  }
 };

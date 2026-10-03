@@ -2,224 +2,88 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { PoultryNews } from '../types';
 import { logActivity } from './activityService';
 
-const LOCAL_STORAGE_NEWS_KEY = 'kukutrack_news_store';
-const LOCAL_STORAGE_DELETED_NEWS_KEY = 'kukutrack_deleted_news_ids';
-
-// Helper to get local stored news
-const getLocalNews = (): PoultryNews[] => {
+/**
+ * News is stored ONLY in the Supabase database. Nothing is cached or faked in the
+ * browser, so what the admin posts is exactly what users see, and what the admin
+ * deletes is really gone for everyone.
+ *
+ * Database rules (Row Level Security):
+ *  - a user can read broadcasts and messages addressed to them
+ *  - only the admin can post, edit or delete
+ */
+export const fetchNewsForUser = async (): Promise<PoultryNews[]> => {
+  if (!isSupabaseConfigured || !supabase) return [];
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_NEWS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const { data, error } = await supabase
+      .from('poultry_news')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !Array.isArray(data)) return [];
+    return data as PoultryNews[];
   } catch {
     return [];
   }
 };
 
-// Helper to save local news
-const saveLocalNews = (items: PoultryNews[]) => {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_NEWS_KEY, JSON.stringify(items));
-  } catch {
-    // Ignore storage limits
-  }
-};
-
-// Helper to track permanently deleted news IDs
-const getDeletedNewsIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_DELETED_NEWS_KEY);
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch {
-    return new Set();
-  }
-};
-
-const markNewsAsDeletedLocally = (id: string) => {
-  try {
-    const set = getDeletedNewsIds();
-    set.add(id);
-    localStorage.setItem(LOCAL_STORAGE_DELETED_NEWS_KEY, JSON.stringify(Array.from(set)));
-  } catch {
-    // Ignore
-  }
-};
-
-/**
- * Fetch real news for user. Does NOT return any prerecorded mock news!
- * Matches broadcast news OR news targeted specifically to this user's ID or Email.
- */
-export const fetchNewsForUser = async (
-  userId?: string | null,
-  userEmail?: string | null,
-  isAdmin?: boolean
-): Promise<PoultryNews[]> => {
-  const deletedIds = getDeletedNewsIds();
-  let dbNews: PoultryNews[] = [];
-
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('poultry_news')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && Array.isArray(data)) {
-        dbNews = data;
-      }
-    } catch {
-      // Quiet fail if table not present
-    }
-  }
-
-  // Also read from local backup store
-  const localItems = getLocalNews();
-
-  // Combine DB and local items uniquely by ID
-  const map = new Map<string, PoultryNews>();
-  dbNews.forEach((n) => {
-    if (!deletedIds.has(n.id)) {
-      map.set(n.id, n);
-    }
-  });
-
-  localItems.forEach((n) => {
-    if (!deletedIds.has(n.id) && !map.has(n.id)) {
-      map.set(n.id, n);
-    }
-  });
-
-  const allActiveNews = Array.from(map.values()).sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-
-  // If Admin, they see every news entry throughout the entire farm UI
-  if (isAdmin) {
-    return allActiveNews;
-  }
-
-  // If standard user, show broadcast news OR news explicitly targeted to this user's ID or email
-  const currentUid = userId ? userId.trim() : null;
-  const currentEmail = userEmail ? userEmail.trim().toLowerCase() : null;
-
-  const userNews = allActiveNews.filter((item) => {
-    const hasTargetUser = Boolean(item.target_user_id && item.target_user_id.trim() !== '');
-    const hasTargetEmail = Boolean(item.target_user_email && item.target_user_email.trim() !== '');
-
-    // 1. Broadcast news (no target) is visible to all users
-    if (!hasTargetUser && !hasTargetEmail) {
-      return true;
-    }
-
-    // 2. Targeted to user's UID
-    if (currentUid && item.target_user_id && item.target_user_id.trim() === currentUid) {
-      return true;
-    }
-
-    // 3. Targeted to user's Email address
-    if (
-      currentEmail &&
-      item.target_user_email &&
-      item.target_user_email.trim().toLowerCase() === currentEmail
-    ) {
-      return true;
-    }
-
-    return false;
-  });
-
-  return userNews;
-};
-
-/**
- * Dispatch news or personal advisory. Persists to both Supabase and Local Store.
- */
 export const createNews = async (
   news: Omit<PoultryNews, 'id' | 'created_at'>
 ): Promise<PoultryNews> => {
-  const generatedId = `news-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  const now = new Date().toISOString();
+  if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  // Sanitize target recipient
+  const title = news.title.trim();
+  const content = news.content.trim();
+  if (!title || !content) throw new Error('Please enter both a title and a message.');
+
   const target_user_id =
     news.target_user_id && news.target_user_id !== 'broadcast' && news.target_user_id.trim() !== ''
       ? news.target_user_id.trim()
       : null;
 
-  const target_user_email =
-    news.target_user_email && news.target_user_email.trim() !== ''
-      ? news.target_user_email.trim().toLowerCase()
-      : null;
-
-  const author_id = news.author_id && news.author_id.trim() !== '' ? news.author_id.trim() : null;
-
-  const payloadToInsert = {
-    title: news.title.trim(),
-    content: news.content.trim(),
+  const payload = {
+    title,
+    content,
     category: news.category || 'general',
     priority: news.priority || 'normal',
     target_user_id,
-    target_user_email,
-    author_id,
+    target_user_email: news.target_user_email ? news.target_user_email.trim().toLowerCase() : null,
+    author_id: news.author_id && news.author_id.trim() !== '' ? news.author_id.trim() : null,
     author_name: news.author_name || 'Farm Administration',
     suggestion_context: news.suggestion_context || null,
   };
 
-  let finalNews: PoultryNews = {
-    ...payloadToInsert,
-    id: generatedId,
-    created_at: now,
-  };
+  const { data, error } = await supabase.from('poultry_news').insert([payload]).select().single();
 
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('poultry_news')
-        .insert([payloadToInsert])
-        .select()
-        .single();
-
-      if (!error && data) {
-        finalNews = data;
-      }
-    } catch {
-      // Quiet failover to local store
+  if (error) {
+    const msg = String(error.message || '');
+    if (msg.toLowerCase().includes('row-level security')) {
+      throw new Error('Only the administrator can post news. Please sign in as admin and run the latest SQL migration.');
     }
+    if (error.code === 'PGRST205' || msg.toLowerCase().includes('schema cache')) {
+      throw new Error('The news table is missing. Run supabase/migrations/002_user_isolation_and_news.sql in Supabase.');
+    }
+    throw new Error(msg || 'Could not post the news.');
   }
-
-  // Always keep in local store backup so recipient sees it immediately
-  const existing = getLocalNews();
-  const updated = [finalNews, ...existing.filter((n) => n.id !== finalNews.id)];
-  saveLocalNews(updated);
 
   await logActivity(
     'News Dispatched',
     'poultry_news',
-    finalNews.id,
-    `Title: ${finalNews.title} | Target: ${finalNews.target_user_email || finalNews.target_user_id || 'Broadcast'}`
+    data.id,
+    `Title: ${data.title} | Target: ${data.target_user_email || data.target_user_id || 'Everyone'}`
   );
 
-  return finalNews;
+  return data as PoultryNews;
 };
 
-/**
- * Delete news throughout the entire system (Supabase DB + Local Store).
- */
+/** Really deletes a news item for everyone. Throws if nothing was deleted. */
 export const deleteNews = async (id: string): Promise<void> => {
-  markNewsAsDeletedLocally(id);
+  if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  // 1. Delete from Supabase
-  if (isSupabaseConfigured && supabase) {
-    try {
-      await supabase.from('poultry_news').delete().eq('id', id);
-    } catch {
-      // Quiet failover
-    }
+  const { data, error } = await supabase.from('poultry_news').delete().eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error('The message was not deleted. Only the administrator can delete news.');
   }
-
-  // 2. Delete from Local Store
-  const existing = getLocalNews();
-  const filtered = existing.filter((item) => item.id !== id);
-  saveLocalNews(filtered);
 
   await logActivity('News Deleted', 'poultry_news', id);
 };

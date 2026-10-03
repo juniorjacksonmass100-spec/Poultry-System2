@@ -3,6 +3,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { UserProfile, ActivityLog } from '../../types';
+import type { UserSummary } from '../../services/adminService';
 import { DangerZoneModal } from './DangerZoneModal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import {
@@ -12,6 +13,7 @@ import {
   UserX,
   Trash2,
   User,
+  Eye,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -21,6 +23,8 @@ interface AdminDashboardProps {
   onChangeUserRole: (userId: string, role: 'admin' | 'staff') => Promise<void>;
   onDeleteUser: (userId: string) => Promise<void>;
   onRefreshData: () => Promise<void>;
+  onViewUser: (user: UserProfile) => void;
+  summaries: Record<string, UserSummary>;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -30,6 +34,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onChangeUserRole,
   onDeleteUser,
   onRefreshData,
+  onViewUser,
+  summaries,
 }) => {
   const { t, lang } = useLanguage();
   const { user: currentAuthUser } = useAuth();
@@ -49,7 +55,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       await onDeleteUser(deleteTargetUser.id);
       setDeleteTargetUser(null);
     } catch {
-      // Quiet failover
+      // The error is shown as a message by the parent handler
     } finally {
       setIsDeletingUser(false);
     }
@@ -197,6 +203,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             {u.phone}
                           </div>
                         )}
+                        {summaries[u.id] && (
+                          <div className={`text-[11px] pl-5.5 mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#729997]'}`}>
+                            {isSw ? 'Makundi' : 'Flocks'} {summaries[u.id].flock_count} · {isSw ? 'Mayai' : 'Eggs'} {summaries[u.id].egg_record_count} · {isSw ? 'Mauzo' : 'Sales'} {summaries[u.id].sale_count} · {isSw ? 'Gharama' : 'Expenses'} {summaries[u.id].expense_count}
+                          </div>
+                        )}
                       </td>
 
                       <td className={`py-3 px-3 font-mono font-medium ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -233,6 +244,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {!isSelf && (
+                            <button
+                              onClick={() => onViewUser(u)}
+                              className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border transition-colors cursor-pointer ${
+                                isLight
+                                  ? 'text-teal-800 bg-teal-50 hover:bg-teal-100 border-teal-300'
+                                  : 'text-[#00f5c4] bg-[#00f5c4]/10 hover:bg-[#00f5c4]/20 border-[#00f5c4]/40'
+                              }`}
+                              title={isSw ? 'Fungua akaunti ya mtumiaji huyu' : "Open this user's account and see all their data"}
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>{isSw ? 'Fungua' : 'Open'}</span>
+                            </button>
+                          )}
                           {!isSelf && (
                             <button
                               onClick={() => onChangeUserRole(u.id, u.role === 'admin' ? 'staff' : 'admin')}

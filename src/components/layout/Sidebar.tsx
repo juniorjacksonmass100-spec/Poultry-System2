@@ -2,6 +2,7 @@ import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { FontSizeSwitcher } from '../common/FontSizeSwitcher';
 import {
   LayoutDashboard,
   Layers,
@@ -192,6 +193,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : 'bg-[#02090b] border-[#00f5c4]/25'
         }`}
       >
+        {(!isCollapsed || isMobileOpen) && (
+          <FontSizeSwitcher showLabel className="mb-3 justify-between" />
+        )}
         {user ? (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 overflow-hidden">

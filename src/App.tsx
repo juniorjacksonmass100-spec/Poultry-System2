@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { useToast } from './context/ToastContext';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { SupabaseSetupBanner } from './components/auth/SupabaseSetupBanner';
 import { AuthModal } from './components/auth/AuthModal';
+import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
+import { NewsTicker } from './components/news/NewsTicker';
+import { ViewAsBanner } from './components/common/ViewAsBanner';
 import { Sidebar, NavigationTab } from './components/layout/Sidebar';
 import { TopBar } from './components/layout/TopBar';
 import { SchemaSetupNotice } from './components/common/SchemaSetupNotice';
@@ -68,7 +72,10 @@ import {
   updateUserRole,
   toggleUserStatus,
   deleteUserProfile,
+  fetchUserSummaries,
+  UserSummary,
 } from './services/adminService';
+import { errorMessage } from './lib/db';
 import { fetchActivityLogs } from './services/activityService';
 import { exportToExcel } from './services/exportService';
 import {
@@ -92,8 +99,10 @@ import {
 import { ShieldAlert, Loader2, LogIn, Sparkles } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
-  const { user, profile, loading: authLoading, isSchemaMissing, isAdmin, showAuthModal, setShowAuthModal, signOut } = useAuth();
-  const { t } = useLanguage();
+  const { user, profile, loading: authLoading, isSchemaMissing, isAdmin, showAuthModal, setShowAuthModal, signOut, viewAsUser, setViewAsUser, effectiveOwnerId, refreshProfile } = useAuth();
+  const { t, lang } = useLanguage();
+  const { notify } = useToast();
+  const isSw = lang === 'sw';
   const { theme } = useTheme();
   const isLight = theme === 'light';
 
@@ -113,6 +122,8 @@ const MainAppContent: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [news, setNews] = useState<PoultryNews[]>([]);
+  const [userSummaries, setUserSummaries] = useState<Record<string, UserSummary>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDataManagementOpen, setIsDataManagementOpen] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
 
@@ -137,12 +148,15 @@ const MainAppContent: React.FC = () => {
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
-  // Load all records strictly from Supabase
+  // Load all records strictly from Supabase. Each call is numbered so that a slow answer
+  // for a previous account can never overwrite the account that is on screen now.
+  const loadSeq = useRef(0);
   const loadAllData = useCallback(async () => {
     if (!supabase) {
       setDataLoading(false);
       return;
     }
+    const seq = ++loadSeq.current;
     try {
       const [
         pData,
@@ -154,6 +168,7 @@ const MainAppContent: React.FC = () => {
         uData,
         actData,
         nData,
+        summaryData,
       ] = await Promise.all([
         fetchPoultryStocks(),
         fetchEggProductions(),
@@ -163,8 +178,11 @@ const MainAppContent: React.FC = () => {
         fetchSales(),
         isAdmin ? fetchAllUsers() : Promise.resolve([]),
         isAdmin ? fetchActivityLogs(100) : Promise.resolve([]),
-        fetchNewsForUser(user?.id, user?.email, isAdmin),
+        fetchNewsForUser(),
+        isAdmin ? fetchUserSummaries() : Promise.resolve({}),
       ]);
+
+      if (seq !== loadSeq.current) return; // a newer load is in charge
 
       setPoultry(pData);
       setEggs(eData);
@@ -176,17 +194,77 @@ const MainAppContent: React.FC = () => {
       if (isAdmin) {
         setUsers(uData);
         setActivityLogs(actData);
+        setUserSummaries(summaryData as Record<string, UserSummary>);
       }
     } catch {
       // Quiet fail if tables are not yet migrated
     } finally {
-      setDataLoading(false);
+      if (seq === loadSeq.current) setDataLoading(false);
     }
-  }, [isAdmin, user?.id, user?.email]);
+  }, [isAdmin, user?.id, effectiveOwnerId]);
 
+  // When the account on screen changes (sign in/out, admin opens a user) clear the old
+  // account's numbers first so nobody ever sees a flash of someone else's data.
+  const shownOwnerRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
+    if (shownOwnerRef.current !== effectiveOwnerId) {
+      shownOwnerRef.current = effectiveOwnerId;
+      setPoultry([]);
+      setEggs([]);
+      setBrooding([]);
+      setExpenses([]);
+      setSales([]);
+      setDataLoading(true);
+    }
     loadAllData();
+  }, [loadAllData, effectiveOwnerId]);
+
+  // Manual refresh button
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.all([loadAllData(), refreshProfile()]);
+      notify('success', isSw ? 'Data mpya imepakiwa.' : 'Everything is up to date.');
+    } catch (err) {
+      notify('error', errorMessage(err, isSw ? 'Imeshindwa kuonyesha upya.' : 'Could not refresh.'));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, loadAllData, refreshProfile, notify, isSw]);
+
+  // Refresh automatically when the app / browser tab comes back into view (max once per 5s)
+  const lastAutoRefresh = useRef(0);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastAutoRefresh.current < 5000) return;
+      lastAutoRefresh.current = now;
+      loadAllData();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   }, [loadAllData]);
+
+  // Runs a delete, tells the user the truth about the result, then reloads from the database
+  const runDelete = useCallback(
+    async (successText: string, action: () => Promise<void>) => {
+      try {
+        await action();
+        notify('success', successText);
+      } catch (err) {
+        notify('error', errorMessage(err, isSw ? 'Imeshindwa kufuta.' : 'Could not delete.'));
+      } finally {
+        await loadAllData();
+      }
+    },
+    [notify, loadAllData, isSw]
+  );
 
   // Real-time synchronization across devices using Supabase Realtime
   useEffect(() => {
@@ -235,7 +313,10 @@ const MainAppContent: React.FC = () => {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'profiles' },
           () => {
-            if (isAdmin) fetchAllUsers().then(setUsers);
+            if (isAdmin) {
+              fetchAllUsers().then(setUsers);
+              fetchUserSummaries().then(setUserSummaries);
+            }
           }
         )
         .on(
@@ -249,7 +330,7 @@ const MainAppContent: React.FC = () => {
           'postgres_changes',
           { event: '*', schema: 'public', table: 'poultry_news' },
           () => {
-            fetchNewsForUser(user?.id, user?.email, isAdmin).then((dbNews) => {
+            fetchNewsForUser().then((dbNews) => {
               setNews(dbNews);
             });
           }
@@ -264,7 +345,13 @@ const MainAppContent: React.FC = () => {
     } catch {
       // Channel failover if tables not yet published
     }
-  }, [isAdmin, user?.id, user?.email]);
+  }, [isAdmin, user?.id]);
+
+  // Ticker items: broadcasts + messages addressed to the account on screen
+  const tickerItems = useMemo(
+    () => news.filter((n) => !n.target_user_id || n.target_user_id === effectiveOwnerId),
+    [news, effectiveOwnerId]
+  );
 
   // Derived Financial Calculations strictly from actual records
   const financials = useMemo(() => {
@@ -347,14 +434,20 @@ const MainAppContent: React.FC = () => {
 
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col min-w-0 transition-colors duration-200 ${isLight ? 'bg-[#f4f7f6]' : 'bg-[#020708]'}`}>
-        <TopBar
-          currentTab={currentTab}
-          onOpenMobileMenu={() => setIsMobileOpen(true)}
-          onExportAll={handleExportAll}
-          isRealtimeActive={isRealtimeActive}
-          onOpenSignIn={() => setShowAuthModal(true)}
-          onOpenDataManagement={() => setIsDataManagementOpen(true)}
-        />
+        <div className="sticky top-0 z-30">
+          <ViewAsBanner />
+          <TopBar
+            currentTab={currentTab}
+            onOpenMobileMenu={() => setIsMobileOpen(true)}
+            onExportAll={handleExportAll}
+            isRealtimeActive={isRealtimeActive}
+            onOpenSignIn={() => setShowAuthModal(true)}
+            onOpenDataManagement={() => setIsDataManagementOpen(true)}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+          />
+          {user && <NewsTicker items={tickerItems} onOpenNews={() => setCurrentTab('news')} />}
+        </div>
 
         <main className="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto">
           {/* Notice if tables not yet created in Supabase */}
@@ -396,7 +489,7 @@ const MainAppContent: React.FC = () => {
               <span className="text-xs font-medium text-[#94b8b6]">{t.loading}</span>
             </div>
           ) : (
-            <>
+            <div key={`${currentTab}:${effectiveOwnerId ?? 'none'}`} className="kuku-tab-enter">
               {/* Tab: Dashboard Overview */}
               {currentTab === 'dashboard' && (
                 <DashboardOverview
@@ -438,15 +531,12 @@ const MainAppContent: React.FC = () => {
                     setMortalityStock(stock);
                     setIsMortalityModalOpen(true);
                   })}
-                  onDelete={async (id) => {
-                    setPoultry((prev) => prev.filter((p) => p.id !== id));
-                    try {
+                  onDelete={(id) =>
+                    runDelete(isSw ? 'Kumbukumbu ya kuku imefutwa.' : 'Flock record deleted.', async () => {
                       await deletePoultryStock(id);
-                    } catch {
-                      // Quiet failover
-                    }
-                    await loadAllData();
-                  }}
+                      setPoultry((prev) => prev.filter((x) => x.id !== id));
+                    })
+                  }
                 />
               )}
 
@@ -462,15 +552,12 @@ const MainAppContent: React.FC = () => {
                     setEditingEgg(rec);
                     setIsEggModalOpen(true);
                   })}
-                  onDelete={async (id) => {
-                    setEggs((prev) => prev.filter((e) => e.id !== id));
-                    try {
+                  onDelete={(id) =>
+                    runDelete(isSw ? 'Kumbukumbu ya mayai imefutwa.' : 'Egg record deleted.', async () => {
                       await deleteEggProduction(id);
-                    } catch {
-                      // Quiet failover
-                    }
-                    await loadAllData();
-                  }}
+                      setEggs((prev) => prev.filter((x) => x.id !== id));
+                    })
+                  }
                 />
               )}
 
@@ -486,15 +573,12 @@ const MainAppContent: React.FC = () => {
                     setEditingBrooding(rec);
                     setIsBroodingModalOpen(true);
                   })}
-                  onDelete={async (id) => {
-                    setBrooding((prev) => prev.filter((b) => b.id !== id));
-                    try {
+                  onDelete={(id) =>
+                    runDelete(isSw ? 'Kumbukumbu ya utotoleshaji imefutwa.' : 'Brooding record deleted.', async () => {
                       await deleteBroodingRecord(id);
-                    } catch {
-                      // Quiet failover
-                    }
-                    await loadAllData();
-                  }}
+                      setBrooding((prev) => prev.filter((x) => x.id !== id));
+                    })
+                  }
                 />
               )}
 
@@ -512,15 +596,12 @@ const MainAppContent: React.FC = () => {
                     setEditingExpense(ex);
                     setIsExpenseModalOpen(true);
                   })}
-                  onDelete={async (id) => {
-                    setExpenses((prev) => prev.filter((ex) => ex.id !== id));
-                    try {
+                  onDelete={(id) =>
+                    runDelete(isSw ? 'Gharama imefutwa.' : 'Expense deleted.', async () => {
                       await deleteExpense(id);
-                    } catch {
-                      // Quiet failover
-                    }
-                    await loadAllData();
-                  }}
+                      setExpenses((prev) => prev.filter((x) => x.id !== id));
+                    })
+                  }
                 />
               )}
 
@@ -536,15 +617,12 @@ const MainAppContent: React.FC = () => {
                     setEditingSale(sale);
                     setIsSaleModalOpen(true);
                   })}
-                  onDelete={async (id) => {
-                    setSales((prev) => prev.filter((s) => s.id !== id));
-                    try {
+                  onDelete={(id) =>
+                    runDelete(isSw ? 'Mauzo yamefutwa.' : 'Sale deleted.', async () => {
                       await deleteSale(id);
-                    } catch {
-                      // Quiet failover
-                    }
-                    await loadAllData();
-                  }}
+                      setSales((prev) => prev.filter((x) => x.id !== id));
+                    })
+                  }
                 />
               )}
 
@@ -584,8 +662,8 @@ const MainAppContent: React.FC = () => {
                     setNews((prev) => [created, ...prev.filter((item) => item.id !== created.id)]);
                   }}
                   onDeleteNews={async (id) => {
-                    setNews((prev) => prev.filter((item) => item.id !== id));
                     await deleteNews(id);
+                    setNews((prev) => prev.filter((item) => item.id !== id));
                   }}
                 />
               )}
@@ -595,27 +673,57 @@ const MainAppContent: React.FC = () => {
                 <AdminDashboard
                   users={users}
                   activityLogs={activityLogs}
+                  summaries={userSummaries}
+                  onViewUser={(target) => {
+                    setViewAsUser(target);
+                    setCurrentTab('dashboard');
+                    notify(
+                      'info',
+                      isSw
+                        ? `Unaangalia akaunti ya ${target.full_name || target.email}.`
+                        : `Now viewing ${target.full_name || target.email}'s account.`
+                    );
+                  }}
                   onToggleUserStatus={async (userId, active) => {
-                    await toggleUserStatus(userId, active);
+                    try {
+                      await toggleUserStatus(userId, active);
+                      notify('success', active ? (isSw ? 'Mtumiaji ameamilishwa.' : 'User activated.') : (isSw ? 'Mtumiaji amezimwa.' : 'User deactivated.'));
+                    } catch (err) {
+                      notify('error', errorMessage(err));
+                    }
                     await loadAllData();
                   }}
                   onChangeUserRole={async (userId, role) => {
-                    await updateUserRole(userId, role);
+                    try {
+                      await updateUserRole(userId, role);
+                      notify('success', isSw ? 'Wadhifa umebadilishwa.' : 'Role updated.');
+                    } catch (err) {
+                      notify('error', errorMessage(err));
+                    }
                     await loadAllData();
                   }}
                   onDeleteUser={async (userId) => {
-                    await deleteUserProfile(userId);
+                    try {
+                      await deleteUserProfile(userId);
+                      notify('success', isSw ? 'Mtumiaji amefutwa kabisa.' : 'User and all their data permanently deleted.');
+                      if (viewAsUser?.id === userId) setViewAsUser(null);
+                    } catch (err) {
+                      notify('error', errorMessage(err));
+                    }
                     await loadAllData();
                   }}
                   onRefreshData={loadAllData}
                 />
               )}
-            </>
+            </div>
           )}
         </main>
       </div>
 
       {/* --- MODAL DIALOGS --- */}
+
+      {/* Password reset (opened from the email link) */}
+      <ResetPasswordModal />
 
       {/* 0. Auth Modal */}
       <AuthModal
@@ -730,7 +838,10 @@ const MainAppContent: React.FC = () => {
           expenses: expenses.length,
           sales: sales.length,
         }}
-        onDataCleared={loadAllData}
+        onDataCleared={async () => {
+          await loadAllData();
+          notify('success', isSw ? 'Data imefutwa.' : 'Records cleared.');
+        }}
       />
     </div>
   );

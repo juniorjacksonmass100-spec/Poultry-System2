@@ -1,13 +1,18 @@
 import { supabase, isSupabaseConfigured, isTableMissingError } from '../lib/supabase';
 import { Sale } from '../types';
 import { logActivity } from './activityService';
+import { getActiveOwnerId, requireOwnerId } from '../lib/scope';
+import { deleteRowOrThrow } from '../lib/db';
 
 export const fetchSales = async (): Promise<Sale[]> => {
   if (!isSupabaseConfigured || !supabase) return [];
+  const ownerId = getActiveOwnerId();
+  if (!ownerId) return [];
   try {
     const { data, error } = await supabase
       .from('sales')
       .select('*')
+      .eq('owner_id', ownerId)
       .order('sale_date', { ascending: false });
 
     if (error) {
@@ -25,6 +30,7 @@ export const createSale = async (
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
   const { data: { user } } = await supabase.auth.getUser();
+  const ownerId = await requireOwnerId();
   const totalAmount = sale.quantity * sale.unit_price;
   const balance = Math.max(0, totalAmount - sale.amount_paid);
 
@@ -50,6 +56,7 @@ export const createSale = async (
     .insert([
       {
         ...sale,
+        owner_id: ownerId,
         total_amount: totalAmount,
         balance,
         recorded_by: user?.id || null,
@@ -69,6 +76,7 @@ export const createSale = async (
     try {
       await supabase.from('poultry_movements').insert([
         {
+          owner_id: ownerId,
           stock_id: sale.stock_id,
           movement_type: 'sale',
           quantity: sale.quantity,
@@ -126,8 +134,7 @@ export const updateSale = async (
 export const deleteSale = async (id: string): Promise<void> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 
-  const { error } = await supabase.from('sales').delete().eq('id', id);
-  if (error) throw error;
+  await deleteRowOrThrow('sales', id);
 
   await logActivity('Sale Deleted', 'sales', id);
 };

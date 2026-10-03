@@ -48,6 +48,7 @@ export const AccountDataManagementModal: React.FC<AccountDataManagementModalProp
   const [targetLabel, setTargetLabel] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isLight = theme === 'light';
   const isSw = lang === 'sw';
@@ -81,8 +82,10 @@ export const AccountDataManagementModal: React.FC<AccountDataManagementModalProp
       setSuccessMsg(isSw ? `Umefanikiwa kufuta ${targetLabel}!` : `Successfully cleared ${targetLabel}!`);
       setTimeout(() => setSuccessMsg(null), 3500);
       setConfirmTarget(null);
-    } catch {
-      // Quiet failover
+    } catch (err: any) {
+      setConfirmTarget(null);
+      setErrorMsg(err?.message || (isSw ? 'Imeshindwa kufuta data.' : 'Could not clear the records.'));
+      setTimeout(() => setErrorMsg(null), 6000);
     } finally {
       setIsDeleting(false);
     }
@@ -164,6 +167,11 @@ export const AccountDataManagementModal: React.FC<AccountDataManagementModalProp
 
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/40 rounded-xl text-rose-500 text-xs shadow-sm" role="alert">
+              {errorMsg}
+            </div>
+          )}
           {successMsg && (
             <div className="p-3 bg-emerald-500/15 border border-emerald-400/40 rounded-xl text-emerald-600 dark:text-emerald-300 text-xs flex items-center gap-2 shadow-sm">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />

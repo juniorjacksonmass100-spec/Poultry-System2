@@ -19,6 +19,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+      // Apply the saved text size before the first paint (no flash of the wrong size)
+      try { document.documentElement.setAttribute('data-fs', localStorage.getItem('kukutrack_font_size') || 'medium'); } catch (e) {}
+    </script>
   </head>
   <body class="bg-neutral-900 text-neutral-100 antialiased font-sans">
     <div id="root"></div>

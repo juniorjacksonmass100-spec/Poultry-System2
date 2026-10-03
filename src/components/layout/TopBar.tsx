@@ -3,7 +3,8 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { NavigationTab } from './Sidebar';
-import { Menu, Globe, FileSpreadsheet, Shield, LogOut, LogIn, Sun, Moon } from 'lucide-react';
+import { Menu, Globe, FileSpreadsheet, Shield, LogOut, LogIn, Sun, Moon, RefreshCw } from 'lucide-react';
+import { FontSizeSwitcher } from '../common/FontSizeSwitcher';
 import { UserProfileModal } from '../auth/UserProfileModal';
 
 interface TopBarProps {
@@ -13,6 +14,8 @@ interface TopBarProps {
   isRealtimeActive: boolean;
   onOpenSignIn: () => void;
   onOpenDataManagement?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -22,6 +25,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   isRealtimeActive,
   onOpenSignIn,
   onOpenDataManagement,
+  onRefresh,
+  isRefreshing = false,
 }) => {
   const { lang, setLanguage, t } = useLanguage();
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -123,6 +128,29 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Zone 3: Actions (Theme Toggle + Language + Excel Export + Sign In / Out) */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Refresh: pulls the newest data from the database */}
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className={`flex items-center gap-1.5 p-2 rounded-lg border transition-all cursor-pointer ${
+                isLight
+                  ? 'bg-teal-50 hover:bg-teal-100 text-teal-800 border-teal-200'
+                  : 'bg-[#071c1f] hover:bg-[#0b282c] text-[#00f5c4] border-[#00f5c4]/25 shadow-[0_0_10px_rgba(0,245,196,0.15)]'
+              }`}
+              title={lang === 'sw' ? 'Onyesha upya data' : 'Refresh data'}
+              aria-label={lang === 'sw' ? 'Onyesha upya data' : 'Refresh data'}
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'kuku-spin' : ''}`} />
+              <span className="hidden lg:inline font-mono text-[11px] font-semibold">
+                {lang === 'sw' ? 'Onyesha upya' : 'Refresh'}
+              </span>
+            </button>
+          )}
+
+          {/* Text size */}
+          <FontSizeSwitcher className="hidden sm:flex" />
+
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
