@@ -42,10 +42,22 @@ export interface PoultryStock {
   mortality: number;
   sold_quantity: number;
   current_quantity: number;
+  /** Owner's own estimate of what ONE bird is worth today (TZS). 0 = not valued yet. */
+  unit_value: number;
+  valuation_updated_at: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** One saved worth estimate. The history lets the app learn from the whole time birds were on the farm. */
+export interface PoultryValuation {
+  id: string;
+  stock_id: string;
+  unit_value: number;
+  quantity: number;
+  recorded_at: string;
 }
 
 export interface PoultryMovement {

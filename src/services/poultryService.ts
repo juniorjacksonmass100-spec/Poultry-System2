@@ -25,7 +25,7 @@ export const fetchPoultryStocks = async (): Promise<PoultryStock[]> => {
 };
 
 export const createPoultryStock = async (
-  stock: Omit<PoultryStock, 'id' | 'created_at' | 'updated_at' | 'current_quantity'>
+  stock: Omit<PoultryStock, 'id' | 'created_at' | 'updated_at' | 'current_quantity' | 'valuation_updated_at'>
 ): Promise<PoultryStock> => {
   if (!isSupabaseConfigured || !supabase) throw new Error('Database not configured');
 

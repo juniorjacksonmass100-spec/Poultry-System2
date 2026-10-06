@@ -178,6 +178,7 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
                   </th>
                   <th className="py-3 px-3 text-right">{t.genderCol}</th>
                   <th className="py-3 px-3 text-right">{t.costCol}</th>
+                  <th className="py-3 px-3 text-right">{isSw ? 'Thamani ya sasa' : 'Current worth'}</th>
                   <th className="py-3 px-4 text-right">{t.actions}</th>
                 </tr>
               </thead>
@@ -261,6 +262,25 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
                         }`}
                       >
                         {Number(stock.purchase_cost || 0).toLocaleString()}
+                      </td>
+
+                      <td
+                        className={`py-3 px-3 text-right font-mono tabular-numbers whitespace-nowrap ${
+                          isLight ? 'text-amber-800' : 'text-amber-300'
+                        }`}
+                      >
+                        {Number(stock.unit_value) > 0 && stock.current_quantity > 0 ? (
+                          <>
+                            <div className="font-semibold">
+                              {Math.round(Number(stock.unit_value) * stock.current_quantity).toLocaleString()}
+                            </div>
+                            <div className="text-[10px] opacity-70">
+                              {Math.round(Number(stock.unit_value)).toLocaleString()} / {isSw ? 'ndege' : 'bird'}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="opacity-50">—</span>
+                        )}
                       </td>
 
                       <td className="py-3 px-4 text-right">

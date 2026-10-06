@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { PoultryStock } from '../../types';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Coins } from 'lucide-react';
+import { perBirdFromTotal } from '../../lib/valuation';
 
 interface PoultryModalProps {
   isOpen: boolean;
@@ -34,6 +35,9 @@ export const PoultryModal: React.FC<PoultryModalProps> = ({
   const [source, setSource] = useState('');
   const [purchaseCost, setPurchaseCost] = useState<number>(0);
   const [notes, setNotes] = useState('');
+  // Current worth: typed either per bird or as one total for the whole flock
+  const [worthMode, setWorthMode] = useState<'per_bird' | 'total'>('per_bird');
+  const [worthInput, setWorthInput] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -66,6 +70,8 @@ export const PoultryModal: React.FC<PoultryModalProps> = ({
       setSource(initialData.source || '');
       setPurchaseCost(initialData.purchase_cost || 0);
       setNotes(initialData.notes || '');
+      setWorthMode('per_bird');
+      setWorthInput(Number(initialData.unit_value) || 0);
     } else {
       setPoultryType('indigenous_chicken');
       setCustomType('');
@@ -79,11 +85,20 @@ export const PoultryModal: React.FC<PoultryModalProps> = ({
       setSource('');
       setPurchaseCost(0);
       setNotes('');
+      setWorthMode('per_bird');
+      setWorthInput(0);
     }
     setError(null);
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
+
+  // Birds this worth applies to: what is on the farm now
+  const birdsNow = initialData
+    ? Math.max(0, initialQty - initialData.mortality - initialData.sold_quantity)
+    : initialQty;
+  const unitValue = worthMode === 'per_bird' ? worthInput : perBirdFromTotal(worthInput, birdsNow);
+  const totalWorth = worthMode === 'per_bird' ? worthInput * birdsNow : worthInput;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +125,15 @@ export const PoultryModal: React.FC<PoultryModalProps> = ({
       return;
     }
 
+    if (worthInput < 0) {
+      setError(isSw ? 'Thamani haiwezi kuwa hasi.' : 'Worth cannot be negative.');
+      return;
+    }
+    if (worthMode === 'total' && worthInput > 0 && birdsNow <= 0) {
+      setError(isSw ? 'Hakuna ndege waliobaki kugawa thamani hii.' : 'There are no birds left to spread this total worth over.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -124,6 +148,7 @@ export const PoultryModal: React.FC<PoultryModalProps> = ({
         date_acquired: dateAcquired,
         source: source.trim() || null,
         purchase_cost: Number(purchaseCost),
+        unit_value: Math.round(unitValue * 100) / 100,
         mortality: initialData ? initialData.mortality : 0,
         sold_quantity: initialData ? initialData.sold_quantity : 0,
         notes: notes.trim() || null,
@@ -355,6 +380,76 @@ export const PoultryModal: React.FC<PoultryModalProps> = ({
                 className={inputClass}
               />
             </div>
+          </div>
+
+          {/* Current worth: feeds the farm net worth and the recommended selling price */}
+          <div
+            className={`rounded-xl border p-3.5 space-y-2.5 ${
+              isLight ? 'bg-amber-50/60 border-amber-200' : 'bg-[#0b1f1c] border-[#00f5c4]/25'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <label className={`flex items-center gap-1.5 text-xs font-bold ${isLight ? 'text-amber-900' : 'text-[#00f5c4]'}`}>
+                <Coins className="w-4 h-4" />
+                {isSw ? 'Thamani ya sasa (TZS)' : 'Current worth (TZS)'}
+              </label>
+              <div
+                role="radiogroup"
+                className={`flex rounded-lg border p-0.5 text-[11px] font-bold ${isLight ? 'bg-white border-slate-300' : 'bg-[#040c0c] border-[#00f5c4]/25'}`}
+              >
+                {(['per_bird', 'total'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={worthMode === m}
+                    onClick={() => {
+                      if (m === worthMode) return;
+                      // Keep the same real value when switching the way it is typed
+                      setWorthInput(
+                        m === 'total'
+                          ? Math.round(worthInput * birdsNow)
+                          : perBirdFromTotal(worthInput, birdsNow)
+                      );
+                      setWorthMode(m);
+                    }}
+                    className={`px-2.5 py-1 rounded-md ${
+                      worthMode === m
+                        ? isLight
+                          ? 'bg-teal-600 text-white'
+                          : 'bg-[#00f5c4] text-[#02211b]'
+                        : isLight
+                        ? 'text-slate-600'
+                        : 'text-[#9fc9c4]'
+                    }`}
+                  >
+                    {m === 'per_bird' ? (isSw ? 'Kwa ndege' : 'Per bird') : isSw ? 'Jumla ya kundi' : 'Whole flock'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              value={worthInput || ''}
+              onChange={(e) => setWorthInput(Math.max(0, parseFloat(e.target.value) || 0))}
+              placeholder={worthMode === 'per_bird' ? (isSw ? 'mf. 15000 kwa kuku mmoja' : 'e.g. 15000 for one bird') : isSw ? 'mf. 1500000 kwa kundi lote' : 'e.g. 1500000 for the whole flock'}
+              className={`${inputClass} font-mono tabular-numbers`}
+            />
+            <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#8fbdb8]'}`}>
+              {birdsNow > 0 && worthInput > 0 ? (
+                <>
+                  {isSw ? 'Ndege' : 'Birds'} {birdsNow.toLocaleString()} × TZS {Math.round(unitValue).toLocaleString()} ={' '}
+                  <strong>TZS {Math.round(totalWorth).toLocaleString()}</strong>
+                </>
+              ) : (
+                isSw
+                  ? 'Andika kiasi ambacho ndege hawa wanauzika sokoni leo. Unaweza kukibadilisha wakati wowote; historia huhifadhiwa kukusaidia kupanga bei.'
+                  : 'Enter what these birds would fetch on the market today. You can change it any time; the history is saved to help set your selling price.'
+              )}
+            </p>
           </div>
 
           <div>

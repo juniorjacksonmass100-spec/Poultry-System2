@@ -10,6 +10,9 @@ import { ResetPasswordModal } from './components/auth/ResetPasswordModal';
 import { NewsTicker } from './components/news/NewsTicker';
 import { ViewAsBanner } from './components/common/ViewAsBanner';
 import { Sidebar, NavigationTab } from './components/layout/Sidebar';
+import { SettingsModal } from './components/settings/SettingsModal';
+import { ValuationView } from './components/valuation/ValuationView';
+import { fetchValuations } from './services/valuationService';
 import { TopBar } from './components/layout/TopBar';
 import { SchemaSetupNotice } from './components/common/SchemaSetupNotice';
 
@@ -95,6 +98,7 @@ import {
   UserProfile,
   ActivityLog,
   PoultryNews,
+  PoultryValuation,
 } from './types';
 import { ShieldAlert, Loader2, LogIn, Sparkles } from 'lucide-react';
 
@@ -125,6 +129,8 @@ const MainAppContent: React.FC = () => {
   const [userSummaries, setUserSummaries] = useState<Record<string, UserSummary>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isDataManagementOpen, setIsDataManagementOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [valuations, setValuations] = useState<PoultryValuation[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Modals Open State
@@ -169,6 +175,7 @@ const MainAppContent: React.FC = () => {
         actData,
         nData,
         summaryData,
+        valuationData,
       ] = await Promise.all([
         fetchPoultryStocks(),
         fetchEggProductions(),
@@ -180,6 +187,7 @@ const MainAppContent: React.FC = () => {
         isAdmin ? fetchActivityLogs(100) : Promise.resolve([]),
         fetchNewsForUser(),
         isAdmin ? fetchUserSummaries() : Promise.resolve({}),
+        fetchValuations(),
       ]);
 
       if (seq !== loadSeq.current) return; // a newer load is in charge
@@ -191,6 +199,7 @@ const MainAppContent: React.FC = () => {
       setCategories(catData);
       setSales(sData);
       setNews(nData);
+      setValuations(valuationData);
       if (isAdmin) {
         setUsers(uData);
         setActivityLogs(actData);
@@ -214,6 +223,7 @@ const MainAppContent: React.FC = () => {
       setBrooding([]);
       setExpenses([]);
       setSales([]);
+      setValuations([]);
       setDataLoading(true);
     }
     loadAllData();
@@ -278,6 +288,13 @@ const MainAppContent: React.FC = () => {
           { event: '*', schema: 'public', table: 'poultry_stock' },
           () => {
             fetchPoultryStocks().then(setPoultry);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'poultry_valuations' },
+          () => {
+            fetchValuations().then(setValuations);
           }
         )
         .on(
@@ -430,6 +447,7 @@ const MainAppContent: React.FC = () => {
         isMobileOpen={isMobileOpen}
         onCloseMobile={() => setIsMobileOpen(false)}
         onOpenSignIn={() => setShowAuthModal(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -445,6 +463,7 @@ const MainAppContent: React.FC = () => {
             onOpenDataManagement={() => setIsDataManagementOpen(true)}
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
           {user && <NewsTicker items={tickerItems} onOpenNews={() => setCurrentTab('news')} />}
         </div>
@@ -636,6 +655,24 @@ const MainAppContent: React.FC = () => {
                 />
               )}
 
+              {/* Tab: Net worth and recommended selling price */}
+              {currentTab === 'valuation' && (
+                <ValuationView
+                  poultry={poultry}
+                  sales={sales}
+                  expenses={expenses}
+                  valuations={valuations}
+                  onAddFlock={() => requireAuth(() => {
+                    setEditingPoultry(null);
+                    setIsPoultryModalOpen(true);
+                  })}
+                  onEditFlock={(stock) => requireAuth(() => {
+                    setEditingPoultry(stock);
+                    setIsPoultryModalOpen(true);
+                  })}
+                />
+              )}
+
               {/* Tab: Reports */}
               {currentTab === 'reports' && (
                 <ReportsView
@@ -721,6 +758,9 @@ const MainAppContent: React.FC = () => {
       </div>
 
       {/* --- MODAL DIALOGS --- */}
+
+      {/* Settings: font style and text size */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* Password reset (opened from the email link) */}
       <ResetPasswordModal />

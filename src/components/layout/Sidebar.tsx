@@ -22,6 +22,8 @@ import {
   Newspaper,
   Sun,
   Moon,
+  Scale,
+  Settings,
 } from 'lucide-react';
 
 export type NavigationTab = 
@@ -32,6 +34,7 @@ export type NavigationTab =
   | 'expenses'
   | 'sales'
   | 'financials'
+  | 'valuation'
   | 'reports'
   | 'news'
   | 'admin';
@@ -44,6 +47,7 @@ interface SidebarProps {
   isMobileOpen: boolean;
   onCloseMobile: () => void;
   onOpenSignIn: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -54,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isMobileOpen,
   onCloseMobile,
   onOpenSignIn,
+  onOpenSettings,
 }) => {
   const { t, lang } = useLanguage();
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -69,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'expenses', label: t.expenses, icon: TrendingDown },
     { id: 'sales', label: t.sales, icon: Receipt },
     { id: 'financials', label: t.financials, icon: DollarSign },
+    { id: 'valuation', label: lang === 'sw' ? 'Thamani na Bei' : 'Net Worth & Pricing', icon: Scale },
     { id: 'reports', label: t.reports, icon: BarChart3 },
     { id: 'news', label: t.newsAdvisory, icon: Newspaper },
     ...(isAdmin ? [{ id: 'admin', label: t.adminPanel, icon: ShieldCheck }] : []),
@@ -195,6 +201,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {(!isCollapsed || isMobileOpen) && (
           <FontSizeSwitcher showLabel className="mb-3 justify-between" />
+        )}
+        {onOpenSettings && (
+          <button
+            onClick={() => {
+              onOpenSettings();
+              onCloseMobile();
+            }}
+            className={`w-full mb-3 flex items-center ${isCollapsed && !isMobileOpen ? 'justify-center' : 'gap-2 px-3'} py-2 rounded-lg border text-xs font-semibold ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                : 'bg-[#071c1f] hover:bg-[#0b282c] text-[#c4dedc] border-[#00f5c4]/25'
+            }`}
+            title={lang === 'sw' ? 'Mipangilio' : 'Settings'}
+          >
+            <Settings className="w-4 h-4" />
+            {(!isCollapsed || isMobileOpen) && <span>{lang === 'sw' ? 'Mipangilio (herufi)' : 'Settings (fonts)'}</span>}
+          </button>
         )}
         {user ? (
           <div className="flex items-center justify-between gap-2">

@@ -3,7 +3,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { NavigationTab } from './Sidebar';
-import { Menu, Globe, FileSpreadsheet, Shield, LogOut, LogIn, Sun, Moon, RefreshCw } from 'lucide-react';
+import { Menu, Globe, FileSpreadsheet, Shield, LogOut, LogIn, Sun, Moon, RefreshCw, Settings } from 'lucide-react';
 import { FontSizeSwitcher } from '../common/FontSizeSwitcher';
 import { UserProfileModal } from '../auth/UserProfileModal';
 
@@ -16,6 +16,7 @@ interface TopBarProps {
   onOpenDataManagement?: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  onOpenSettings?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -27,6 +28,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenDataManagement,
   onRefresh,
   isRefreshing = false,
+  onOpenSettings,
 }) => {
   const { lang, setLanguage, t } = useLanguage();
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -49,6 +51,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         return t.sales;
       case 'financials':
         return t.financials;
+      case 'valuation':
+        return lang === 'sw' ? 'Thamani na Bei' : 'Net Worth & Pricing';
       case 'reports':
         return t.reports;
       case 'news':
@@ -150,6 +154,22 @@ export const TopBar: React.FC<TopBarProps> = ({
 
           {/* Text size */}
           <FontSizeSwitcher className="hidden sm:flex" />
+
+          {/* Settings: font style and text size */}
+          {onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className={`flex items-center gap-1.5 p-2 rounded-lg border transition-all cursor-pointer ${
+                isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                  : 'bg-[#071c1f] hover:bg-[#0b282c] text-[#c4dedc] border-[#00f5c4]/25'
+              }`}
+              title={lang === 'sw' ? 'Mipangilio' : 'Settings'}
+              aria-label={lang === 'sw' ? 'Mipangilio' : 'Settings'}
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Theme Toggle Button */}
           <button
