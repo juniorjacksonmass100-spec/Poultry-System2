@@ -5,7 +5,14 @@ import { useTheme } from '../../context/ThemeContext';
 import { BroodingRecord } from '../../types';
 import { EmptyState } from '../common/EmptyState';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { Plus, Edit3, Trash2, Flame } from 'lucide-react';
+import { Plus, Edit3, Trash2, Flame, CalendarClock } from 'lucide-react';
+import {
+  hatchCountdown,
+  upcomingHatches,
+  nextMilestone,
+  milestoneText,
+  countdownLabel,
+} from '../../lib/brooding';
 
 interface BroodingListProps {
   records: BroodingRecord[];
@@ -32,6 +39,7 @@ export const BroodingList: React.FC<BroodingListProps> = ({
   const activeBatches = records.filter(
     (r) => r.status === 'Active' || r.status === 'Due soon'
   );
+  const upcoming = upcomingHatches(records);
   const totalEggsInIncubation = activeBatches.reduce((s, r) => s + r.number_of_eggs, 0);
   const totalChicksProduced = records.reduce((s, r) => s + r.chicks_produced, 0);
 
@@ -205,6 +213,62 @@ export const BroodingList: React.FC<BroodingListProps> = ({
         </button>
       </div>
 
+      {/* Next hatches: countdown for every batch still in the incubator */}
+      {upcoming.length > 0 && (
+        <div
+          className={`border rounded-2xl p-4 space-y-3 ${
+            isLight ? 'bg-white border-teal-200 shadow-sm' : 'bg-[#071a1c] border-[#00f5c4]/25'
+          }`}
+        >
+          <div className={`flex items-center gap-2 text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            <CalendarClock className={`w-4 h-4 ${isLight ? 'text-teal-700' : 'text-[#00f5c4]'}`} />
+            {isSw ? 'Kutotoa kunakokuja' : 'Upcoming hatches'}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {upcoming.slice(0, 6).map(({ rec, c }) => {
+              const hot = c.phase !== 'upcoming' || c.daysLeft <= 3;
+              const ms = nextMilestone(rec, c);
+              return (
+                <div
+                  key={rec.id}
+                  className={`rounded-xl border p-3 ${
+                    hot
+                      ? isLight ? 'bg-amber-50 border-amber-300' : 'bg-amber-500/10 border-amber-400/40'
+                      : isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#04100f] border-[#00f5c4]/15'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      {rec.poultry_type}
+                      <span className={`ml-1.5 text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
+                        {rec.number_of_eggs.toLocaleString()} {isSw ? 'mayai' : 'eggs'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`mt-1 text-2xl font-bold font-mono tabular-numbers ${hot ? 'text-amber-500' : isLight ? 'text-teal-700' : 'text-[#00f5c4]'}`}>
+                    {c.phase === 'upcoming' ? c.daysLeft : c.phase === 'today' ? '0' : `-${Math.abs(c.daysLeft)}`}
+                    <span className={`ml-1 text-xs font-sans font-semibold ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
+                      {isSw ? 'siku' : c.daysLeft === 1 ? 'day' : 'days'}
+                    </span>
+                  </div>
+                  <div className={`text-[11px] ${isLight ? 'text-slate-600' : 'text-[#8fbdb8]'}`}>
+                    {countdownLabel(c, isSw)} · {rec.expected_hatch_date}
+                  </div>
+                  <div className={`mt-2 h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-[#0c2020]'}`}>
+                    <div className={`h-full rounded-full ${hot ? 'bg-amber-500' : isLight ? 'bg-teal-500' : 'bg-[#00f5c4]'}`} style={{ width: `${c.percent}%` }} />
+                  </div>
+                  {ms && (
+                    <div className={`mt-1.5 text-[11px] ${isLight ? 'text-slate-600' : 'text-[#a2ccc8]'}`}>
+                      {milestoneText(ms.code, ms.inDays, isSw)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Table or Empty State */}
       {records.length === 0 ? (
         <EmptyState
@@ -246,6 +310,7 @@ export const BroodingList: React.FC<BroodingListProps> = ({
                   >
                     {t.expectedHatchCol}
                   </th>
+                  <th className="py-3 px-3 min-w-[150px]">{isSw ? 'Siku zilizobaki' : 'Days left'}</th>
                   <th className="py-3 px-3 text-right">{t.hatchedCol}</th>
                   <th className="py-3 px-3 text-right">{t.chicksCol}</th>
                   <th className="py-3 px-3">{t.statusCol}</th>
@@ -310,6 +375,42 @@ export const BroodingList: React.FC<BroodingListProps> = ({
                           </span>
                         )}
                       </td>
+                      <td className="py-3 px-3">
+                        {(() => {
+                          const c = hatchCountdown(rec);
+                          const tone =
+                            c.phase === 'overdue' || c.phase === 'today'
+                              ? 'text-amber-500'
+                              : c.phase === 'done'
+                              ? isLight ? 'text-emerald-700' : 'text-emerald-400'
+                              : c.phase === 'failed'
+                              ? 'text-rose-500'
+                              : c.daysLeft <= 3
+                              ? 'text-amber-500'
+                              : isLight ? 'text-teal-700' : 'text-[#00f5c4]';
+                          const bar =
+                            c.phase === 'overdue' || c.phase === 'today' || (c.phase === 'upcoming' && c.daysLeft <= 3)
+                              ? 'bg-amber-500'
+                              : c.phase === 'failed'
+                              ? 'bg-rose-500'
+                              : isLight ? 'bg-teal-500' : 'bg-[#00f5c4]';
+                          return (
+                            <div>
+                              <div className={`text-xs font-bold ${tone}`}>{countdownLabel(c, isSw)}</div>
+                              {(c.phase === 'upcoming' || c.phase === 'today' || c.phase === 'overdue') && (
+                                <>
+                                  <div className={`mt-1 h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-[#0c2020]'}`}>
+                                    <div className={`h-full rounded-full ${bar}`} style={{ width: `${c.percent}%` }} />
+                                  </div>
+                                  <div className={`mt-0.5 text-[10px] ${isLight ? 'text-slate-500' : 'text-[#729997]'}`}>
+                                    {isSw ? 'Siku' : 'Day'} {c.dayNumber} / {c.totalDays}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td
                         className={`py-3 px-3 text-right font-mono tabular-numbers font-medium ${
                           isLight ? 'text-cyan-700' : 'text-cyan-300'
@@ -328,11 +429,11 @@ export const BroodingList: React.FC<BroodingListProps> = ({
                         {getStatusBadge(rec.status)}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2 md:gap-1">
                           <button
                             onClick={() => onEdit(rec)}
                             title={t.edit}
-                            className={`p-1.5 rounded-lg transition-colors ${
+                            className={`p-3 md:p-1.5 rounded-lg transition-colors ${
                               isLight
                                 ? 'text-slate-400 hover:text-teal-700 hover:bg-teal-50'
                                 : 'text-[#94b8b6] hover:text-[#00f5c4] hover:bg-[#0c1f1f]'
@@ -344,7 +445,7 @@ export const BroodingList: React.FC<BroodingListProps> = ({
                           <button
                             onClick={() => setDeleteTargetId(rec.id)}
                             title={t.delete}
-                            className={`p-1.5 rounded-lg transition-colors ${
+                            className={`p-3 md:p-1.5 rounded-lg transition-colors ${
                               isLight
                                 ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                                 : 'text-[#94b8b6] hover:text-rose-400 hover:bg-[#0c1f1f]'

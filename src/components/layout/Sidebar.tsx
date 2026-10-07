@@ -2,7 +2,6 @@ import React from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { FontSizeSwitcher } from '../common/FontSizeSwitcher';
 import {
   LayoutDashboard,
   Layers,
@@ -157,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <div className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
@@ -166,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.id}
               onClick={() => handleNavClick(item.id as NavigationTab)}
               title={isCollapsed ? item.label : undefined}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group cursor-pointer ${
+              className={`w-full flex items-center gap-3 px-3.5 py-3 min-h-[48px] rounded-xl text-xs font-semibold transition-all group cursor-pointer ${
                 isActive
                   ? isLight
                     ? 'bg-teal-600 text-white font-bold shadow-md'
@@ -199,16 +198,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : 'bg-[#02090b] border-[#00f5c4]/25'
         }`}
       >
-        {(!isCollapsed || isMobileOpen) && (
-          <FontSizeSwitcher showLabel className="mb-3 justify-between" />
-        )}
         {onOpenSettings && (
           <button
             onClick={() => {
               onOpenSettings();
               onCloseMobile();
             }}
-            className={`w-full mb-3 flex items-center ${isCollapsed && !isMobileOpen ? 'justify-center' : 'gap-2 px-3'} py-2 rounded-lg border text-xs font-semibold ${
+            className={`w-full mb-3 flex items-center ${isCollapsed && !isMobileOpen ? 'justify-center' : 'gap-2 px-3'} py-3 min-h-[48px] rounded-xl border text-xs font-semibold ${
               isLight
                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
                 : 'bg-[#071c1f] hover:bg-[#0b282c] text-[#c4dedc] border-[#00f5c4]/25'
@@ -216,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             title={lang === 'sw' ? 'Mipangilio' : 'Settings'}
           >
             <Settings className="w-4 h-4" />
-            {(!isCollapsed || isMobileOpen) && <span>{lang === 'sw' ? 'Mipangilio (herufi)' : 'Settings (fonts)'}</span>}
+            {(!isCollapsed || isMobileOpen) && <span>{lang === 'sw' ? 'Mipangilio' : 'Settings'}</span>}
           </button>
         )}
         {user ? (
@@ -251,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={signOut}
                 title={t.signOut}
-                className="text-rose-500 hover:text-white p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 border border-rose-300 hover:border-rose-500 transition-colors cursor-pointer"
+                className="text-rose-500 hover:text-white w-11 h-11 flex items-center justify-center rounded-xl bg-rose-500/10 hover:bg-rose-500 border border-rose-300 hover:border-rose-500 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
               </button>

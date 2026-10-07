@@ -284,12 +284,12 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
                       </td>
 
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2 md:gap-1">
                           <button
                             onClick={() => onRecordMortality(stock)}
                             disabled={stock.current_quantity <= 0}
                             title={t.recordMortality}
-                            className={`p-1.5 rounded-lg disabled:opacity-30 disabled:pointer-events-none transition-colors ${
+                            className={`p-3 md:p-1.5 rounded-lg disabled:opacity-30 disabled:pointer-events-none transition-colors ${
                               isLight
                                 ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                                 : 'text-[#94b8b6] hover:text-rose-400 hover:bg-[#0c1f1f]'
@@ -301,7 +301,7 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
                           <button
                             onClick={() => onEdit(stock)}
                             title={t.edit}
-                            className={`p-1.5 rounded-lg transition-colors ${
+                            className={`p-3 md:p-1.5 rounded-lg transition-colors ${
                               isLight
                                 ? 'text-slate-400 hover:text-teal-700 hover:bg-teal-50'
                                 : 'text-[#94b8b6] hover:text-[#00f5c4] hover:bg-[#0c1f1f]'
@@ -313,7 +313,7 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
                           <button
                             onClick={() => setDeleteTargetId(stock.id)}
                             title={t.delete}
-                            className={`p-1.5 rounded-lg transition-colors ${
+                            className={`p-3 md:p-1.5 rounded-lg transition-colors ${
                               isLight
                                 ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
                                 : 'text-[#94b8b6] hover:text-rose-400 hover:bg-[#0c1f1f]'

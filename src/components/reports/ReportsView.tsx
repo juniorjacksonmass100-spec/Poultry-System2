@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { DateRangeFilter } from '../common/DateRangeFilter';
-import { exportToExcel } from '../../services/exportService';
+import { exportToExcel, describeExport } from '../../services/exportService';
+import { useToast } from '../../context/ToastContext';
 import {
   PoultryStock,
   EggProduction,
@@ -44,6 +45,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 }) => {
   const { t, lang } = useLanguage();
   const { theme } = useTheme();
+  const { notify } = useToast();
   const isLight = theme === 'light';
   const isSw = lang === 'sw';
 
@@ -93,20 +95,25 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const filteredBrooding = brooding.filter((b) => isDateInRange(b.start_date));
   const filteredPoultry = poultry.filter((p) => isDateInRange(p.date_acquired));
 
-  const handleExport = (type: 'all' | 'poultry' | 'eggs' | 'sales' | 'expenses' | 'brooding' | 'financials') => {
-    exportToExcel(
-      type,
-      {
-        poultry: filteredPoultry,
-        eggs: filteredEggs,
-        sales: filteredSales,
-        expenses: filteredExpenses,
-        brooding: filteredBrooding,
-        activityLogs,
-        financials,
-      },
-      lang
-    );
+  const handleExport = async (type: 'all' | 'poultry' | 'eggs' | 'sales' | 'expenses' | 'brooding' | 'financials') => {
+    try {
+      const result = await exportToExcel(
+        type,
+        {
+          poultry: filteredPoultry,
+          eggs: filteredEggs,
+          sales: filteredSales,
+          expenses: filteredExpenses,
+          brooding: filteredBrooding,
+          activityLogs,
+          financials,
+        },
+        'KukuTrack_Report'
+      );
+      notify('success', describeExport(result, isSw));
+    } catch (err: any) {
+      notify('error', err?.message || (isSw ? 'Imeshindwa kuhamisha faili.' : 'Could not export the file.'));
+    }
   };
 
   const statCardClass = `p-3.5 border rounded-2xl transition-colors ${

@@ -1,10 +1,17 @@
-import React, { useEffect } from 'react';
-import { X, Settings as SettingsIcon, Check, Type } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Settings as SettingsIcon, Check, Type, BellRing } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useFont } from '../../context/FontContext';
 import { FONT_OPTIONS, loadFont } from '../../lib/fonts';
 import { FontSizeSwitcher } from '../common/FontSizeSwitcher';
+import { useBanner } from '../../context/BannerContext';
+import {
+  PermissionState,
+  getNotificationPermission,
+  requestNotificationPermission,
+  showSystemNotification,
+} from '../../lib/notifications';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -16,12 +23,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
   const { lang } = useLanguage();
   const { theme } = useTheme();
   const { fontId, setFontId } = useFont();
+  const { pushBanner } = useBanner();
+  const [permission, setPermission] = useState<PermissionState>('default');
   const isLight = theme === 'light';
   const isSw = lang === 'sw';
 
   // Fetch every font's files so each card can preview itself in its own style
   useEffect(() => {
     if (!isOpen) return;
+    void getNotificationPermission().then(setPermission);
     FONT_OPTIONS.forEach((f) => void loadFont(f));
   }, [isOpen]);
 
@@ -49,6 +59,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         </div>
 
         <div className="p-5 space-y-6 overflow-y-auto">
+          {/* Notifications */}
+          <section className="space-y-2">
+            <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide opacity-80">
+              <BellRing className="w-3.5 h-3.5" />
+              {isSw ? 'Arifa' : 'Notifications'}
+            </h4>
+            <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
+              {isSw
+                ? 'Pata tahadhari ya ujumbe mpya kutoka kwa msimamizi na vikumbusho vya siku ya kutotoa.'
+                : 'Get an alert for new messages from the administrator and reminders on hatch day.'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {permission !== 'granted' && permission !== 'unsupported' && permission !== 'denied' && (
+                <button
+                  type="button"
+                  onClick={async () => setPermission(await requestNotificationPermission())}
+                  className={`px-4 py-3 rounded-xl text-xs font-bold ${isLight ? 'bg-teal-600 text-white' : 'bg-[#00f5c4] text-[#02211b]'}`}
+                >
+                  {isSw ? 'Washa arifa za simu' : 'Turn on phone alerts'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  pushBanner({
+                    title: 'KukuTrack',
+                    body: isSw ? 'Hii ni arifa ya majaribio. Inafanya kazi!' : 'This is a test notification. It works!',
+                    kind: 'message',
+                  });
+                  await showSystemNotification({ id: `test:${Date.now()}`, title: 'KukuTrack', body: isSw ? 'Arifa ya majaribio' : 'Test notification' });
+                }}
+                className={`px-4 py-3 rounded-xl text-xs font-bold border ${isLight ? 'border-slate-300 text-slate-800' : 'border-[#00f5c4]/40 text-[#00f5c4]'}`}
+              >
+                {isSw ? 'Tuma arifa ya majaribio' : 'Send a test notification'}
+              </button>
+            </div>
+            <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
+              {permission === 'granted'
+                ? isSw ? 'Arifa za simu zimewashwa.' : 'Phone alerts are on.'
+                : permission === 'denied'
+                ? isSw ? 'Zimezuiwa. Ziruhusu kwenye mipangilio ya simu au kivinjari.' : 'Blocked. Allow them in your phone or browser settings.'
+                : permission === 'unsupported'
+                ? isSw ? 'Kifaa hiki hakiungi mkono arifa.' : 'This device does not support alerts.'
+                : isSw ? 'Hazijawashwa bado.' : 'Not turned on yet.'}
+            </p>
+          </section>
+
           {/* Text size */}
           <section className="space-y-2">
             <h4 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide opacity-80">

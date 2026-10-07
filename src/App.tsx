@@ -13,6 +13,9 @@ import { Sidebar, NavigationTab } from './components/layout/Sidebar';
 import { SettingsModal } from './components/settings/SettingsModal';
 import { ValuationView } from './components/valuation/ValuationView';
 import { fetchValuations } from './services/valuationService';
+import { NotificationBell } from './components/notifications/NotificationBell';
+import { useNewsNotifications } from './hooks/useNewsNotifications';
+import { useHatchReminders } from './hooks/useHatchReminders';
 import { TopBar } from './components/layout/TopBar';
 import { SchemaSetupNotice } from './components/common/SchemaSetupNotice';
 
@@ -80,7 +83,7 @@ import {
 } from './services/adminService';
 import { errorMessage } from './lib/db';
 import { fetchActivityLogs } from './services/activityService';
-import { exportToExcel } from './services/exportService';
+import { exportToExcel, describeExport } from './services/exportService';
 import {
   fetchNewsForUser,
   createNews,
@@ -370,6 +373,22 @@ const MainAppContent: React.FC = () => {
     [news, effectiveOwnerId]
   );
 
+  // Notifications: new messages and hatch alerts. Off while an admin is inside someone else's account.
+  const notificationsOn = Boolean(user) && !viewAsUser;
+  const {
+    items: myMessages,
+    unreadIds,
+    markAllRead,
+  } = useNewsNotifications({
+    news,
+    userId: user?.id ?? null,
+    enabled: notificationsOn,
+    isSw,
+    onOpen: () => setCurrentTab('news'),
+    isNewsScreenOpen: currentTab === 'news',
+  });
+  const { alerts: hatchAlerts } = useHatchReminders(brooding, notificationsOn, isSw, () => setCurrentTab('brooding'));
+
   // Derived Financial Calculations strictly from actual records
   const financials = useMemo(() => {
     return calculateFinancials(sales, expenses, poultry, eggs);
@@ -420,20 +439,25 @@ const MainAppContent: React.FC = () => {
   }
 
   // Master Global Export
-  const handleExportAll = () => {
-    exportToExcel(
-      'all',
-      {
-        poultry,
-        eggs,
-        sales,
-        expenses,
-        brooding,
-        activityLogs,
-        financials,
-      },
-      'KukuTrack_FullMaster'
-    );
+  const handleExportAll = async () => {
+    try {
+      const result = await exportToExcel(
+        'all',
+        {
+          poultry,
+          eggs,
+          sales,
+          expenses,
+          brooding,
+          activityLogs,
+          financials,
+        },
+        'KukuTrack_FullMaster'
+      );
+      notify('success', describeExport(result, isSw));
+    } catch (err) {
+      notify('error', errorMessage(err, isSw ? 'Imeshindwa kuhamisha faili.' : 'Could not export the file.'));
+    }
   };
 
   return (
@@ -464,6 +488,16 @@ const MainAppContent: React.FC = () => {
             onRefresh={handleRefresh}
             isRefreshing={isRefreshing}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            bellSlot={
+              <NotificationBell
+                messages={myMessages}
+                unreadIds={unreadIds}
+                hatchAlerts={hatchAlerts}
+                onOpenMessages={() => setCurrentTab('news')}
+                onOpenBrooding={() => setCurrentTab('brooding')}
+                onMarkAllRead={markAllRead}
+              />
+            }
           />
           {user && <NewsTicker items={tickerItems} onOpenNews={() => setCurrentTab('news')} />}
         </div>

@@ -22,7 +22,10 @@ import {
   Clock,
   Shield,
   MessageSquarePlus,
+  MessageCircle,
+  Smartphone,
 } from 'lucide-react';
+import { openWhatsApp, normalizePhone, formatNewsForWhatsApp } from '../../lib/whatsapp';
 
 interface NewsCenterProps {
   news: PoultryNews[];
@@ -64,6 +67,11 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
   const [priority, setPriority] = useState<PoultryNews['priority']>('normal');
   const [targetUserId, setTargetUserId] = useState<string>('broadcast');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Extra delivery channel: open WhatsApp with the message ready to send
+  const [alsoWhatsApp, setAlsoWhatsApp] = useState(false);
+  const [waSent, setWaSent] = useState<Set<string>>(new Set());
+  // After posting, the admin finishes the WhatsApp step here
+  const [whatsAppQueue, setWhatsAppQueue] = useState<{ title: string; text: string; people: UserProfile[] } | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Quick Advisory Templates for Admin (Dynamic bilingual)
@@ -185,6 +193,28 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
           : `${isSw ? 'Ushauri Maalum kwa' : 'Custom Advisory for'} ${selectedUserObj?.full_name || selectedUserObj?.email || 'User'}`,
       });
 
+      // WhatsApp step: one person -> open their chat now; everyone -> show a send list
+      if (alsoWhatsApp) {
+        const waText = formatNewsForWhatsApp(title, content, profile?.full_name || undefined);
+        if (isBroadcast) {
+          setWaSent(new Set());
+          setWhatsAppQueue({
+            title: title.trim(),
+            text: waText,
+            people: users.filter((u) => u.id !== user?.id),
+          });
+        } else if (selectedUserObj) {
+          if (!openWhatsApp(selectedUserObj.phone, waText)) {
+            notify(
+              'error',
+              isSw
+                ? `${selectedUserObj.full_name || selectedUserObj.email} hana namba sahihi ya simu. Ujumbe umetumwa ndani ya programu tu.`
+                : `${selectedUserObj.full_name || selectedUserObj.email} has no valid phone number. The message was sent inside the app only.`
+            );
+          }
+        }
+      }
+
       setSuccessToast(
         isBroadcast
           ? isSw ? 'Tangazo la habari limetumwa kwa watumiaji wote!' : 'Broadcast news dispatched to all users!'
@@ -195,6 +225,7 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
       setTitle('');
       setContent('');
       setTargetUserId('broadcast');
+      setAlsoWhatsApp(false);
     } catch (err: any) {
       // Keep the form open so nothing the admin typed is lost, and say what went wrong
       notify('error', err?.message || (isSw ? 'Imeshindwa kutuma habari.' : 'Could not post the news.'));
@@ -412,6 +443,21 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
                     <p className="text-[11px] text-slate-500 dark:text-neutral-400 truncate font-mono mt-0.5">{u.email}</p>
                   </div>
 
+                  <div className="flex items-center gap-2 shrink-0">
+                  {normalizePhone(u.phone) && (
+                    <button
+                      onClick={() => openWhatsApp(u.phone, '')}
+                      className={`flex items-center justify-center w-10 h-10 rounded-lg border transition-all cursor-pointer ${
+                        isLight
+                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-300'
+                          : 'bg-emerald-500/10 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/40'
+                      }`}
+                      title={isSw ? 'Fungua WhatsApp na mtumiaji huyu' : 'Open a WhatsApp chat with this user'}
+                      aria-label="WhatsApp"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => openAdvisoryForUser(u)}
                     className={`flex items-center gap-1 px-2.5 py-1.5 font-semibold text-[11px] rounded-lg border transition-all shrink-0 cursor-pointer ${
@@ -424,7 +470,73 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
                     <MessageSquarePlus className="w-3.5 h-3.5" />
                     <span>{t.suggestAdvisory}</span>
                   </button>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Finish the WhatsApp broadcast: one tap per person */}
+      {isAdmin && whatsAppQueue && (
+        <div
+          className={`border rounded-2xl p-4 space-y-3 ${
+            isLight ? 'bg-emerald-50 border-emerald-300' : 'bg-emerald-500/10 border-emerald-400/40'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className={`flex items-center gap-2 text-sm font-bold ${isLight ? 'text-emerald-900' : 'text-emerald-200'}`}>
+                <MessageCircle className="w-4 h-4" />
+                {isSw ? 'Maliza kutuma kwa WhatsApp' : 'Finish sending on WhatsApp'}
+              </div>
+              <p className={`text-xs mt-1 ${isLight ? 'text-emerald-800' : 'text-emerald-100/80'}`}>
+                {isSw
+                  ? `Ujumbe "${whatsAppQueue.title}" umetumwa ndani ya programu. Bonyeza jina la kila mtu kufungua WhatsApp na ujumbe tayari.`
+                  : `"${whatsAppQueue.title}" was sent inside the app. Tap each person to open WhatsApp with the message ready.`}
+              </p>
+            </div>
+            <button
+              onClick={() => setWhatsAppQueue(null)}
+              className="p-2 rounded-lg text-emerald-700 hover:bg-emerald-200/60 shrink-0"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {whatsAppQueue.people.map((p) => {
+              const ok = Boolean(normalizePhone(p.phone));
+              const done = waSent.has(p.id);
+              return (
+                <button
+                  key={p.id}
+                  disabled={!ok}
+                  onClick={() => {
+                    if (openWhatsApp(p.phone, whatsAppQueue.text)) {
+                      setWaSent((prev) => new Set(prev).add(p.id));
+                    }
+                  }}
+                  className={`flex items-center justify-between gap-2 px-3.5 py-3 rounded-xl border text-left text-xs font-semibold ${
+                    !ok
+                      ? 'opacity-60 border-slate-300 bg-slate-100 text-slate-500'
+                      : done
+                      ? isLight ? 'bg-white border-emerald-300 text-emerald-800' : 'bg-emerald-500/20 border-emerald-400/50 text-emerald-100'
+                      : isLight ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-500 text-emerald-950 border-emerald-400'
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate">{p.full_name || p.email.split('@')[0]}</span>
+                    <span className="block text-[11px] font-normal opacity-80 truncate">
+                      {ok ? p.phone : isSw ? 'Hana namba ya simu' : 'No valid phone number'}
+                    </span>
+                  </span>
+                  <span className="shrink-0 flex items-center gap-1">
+                    {done ? <CheckCircle2 className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
+                    {done ? (isSw ? 'Imefunguliwa' : 'Opened') : 'WhatsApp'}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -782,6 +894,38 @@ export const NewsCenter: React.FC<NewsCenterProps> = ({
                         : 'bg-[#020708] border-[#00f5c4]/25 text-white focus:border-[#00f5c4]'
                     }`}
                   />
+                </div>
+
+                {/* Delivery channels */}
+                <div className={`rounded-xl border p-3 space-y-2 ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#04100f] border-[#00f5c4]/20'}`}>
+                  <div className={`flex items-center gap-2 text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                    <Smartphone className="w-4 h-4 text-emerald-500" />
+                    {isSw ? 'Ndani ya programu (kila mara)' : 'Inside the app (always on)'}
+                  </div>
+                  <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
+                    {isSw
+                      ? 'Mtumiaji anaona ujumbe kwenye mstari wa habari, kengele na tahadhari ya juu.'
+                      : 'The user sees it in the news bar, the bell and as a notification banner.'}
+                  </p>
+                  <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+                    <input
+                      type="checkbox"
+                      checked={alsoWhatsApp}
+                      onChange={(e) => setAlsoWhatsApp(e.target.checked)}
+                      className="mt-0.5 w-5 h-5 accent-emerald-600"
+                    />
+                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <MessageCircle className="w-4 h-4 text-emerald-500" />
+                        {isSw ? 'Tuma pia kwa WhatsApp' : 'Also send on WhatsApp'}
+                      </span>
+                      <span className={`block text-[11px] font-normal mt-0.5 ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
+                        {isSw
+                          ? 'WhatsApp itafunguka na ujumbe tayari; unabonyeza Tuma tu.'
+                          : 'WhatsApp opens with the message ready; you just press Send.'}
+                      </span>
+                    </span>
+                  </label>
                 </div>
 
                 <div className={`pt-3 border-t flex items-center justify-end gap-2.5 ${isLight ? 'border-slate-200' : 'border-[#00f5c4]/20'}`}>

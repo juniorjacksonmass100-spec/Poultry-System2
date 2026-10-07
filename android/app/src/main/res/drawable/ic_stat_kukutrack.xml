@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- White egg-shaped silhouette for the status bar notification icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2C8.2,2 5,8.4 5,13.6C5,17.7 8.1,21 12,21C15.9,21 19,17.7 19,13.6C19,8.4 15.8,2 12,2Z" />
+</vector>

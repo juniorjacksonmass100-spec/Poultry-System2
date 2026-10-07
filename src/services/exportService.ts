@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { saveFileForUser, SaveResult } from '../lib/nativeFiles';
 import { PoultryStock, EggProduction, Sale, Expense, BroodingRecord, ActivityLog, FinancialSummary } from '../types';
 
 export interface ExportDataPayload {
@@ -11,11 +12,18 @@ export interface ExportDataPayload {
   financials?: FinancialSummary;
 }
 
-export const exportToExcel = (
+export interface ExportResult {
+  fileName: string;
+  save: SaveResult;
+}
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+export const exportToExcel = async (
   type: 'all' | 'poultry' | 'eggs' | 'sales' | 'expenses' | 'brooding' | 'financials' | 'activity',
   data: ExportDataPayload,
   fileNamePrefix = 'KukuTrack_Report'
-): void => {
+): Promise<ExportResult> => {
   const wb = XLSX.utils.book_new();
   const dateStr = new Date().toISOString().split('T')[0];
 
@@ -159,7 +167,26 @@ export const exportToExcel = (
     addSheet('Audit Trail', activityRows);
   }
 
-  // Trigger browser download of real XLSX file
-  const fullFileName = `${fileNamePrefix}_${type}_${dateStr}.xlsx`;
-  XLSX.writeFile(wb, fullFileName);
+  // Safe for file names: add the time so exporting twice in one day never clashes
+  const timeStr = new Date().toTimeString().slice(0, 5).replace(':', '');
+  const fullFileName = `${fileNamePrefix}_${type}_${dateStr}_${timeStr}.xlsx`;
+
+  // Real XLSX file. Browser: normal download. Android app: saved into the Downloads folder.
+  const base64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' }) as string;
+  const save = await saveFileForUser(fullFileName, base64, XLSX_MIME, () => XLSX.writeFile(wb, fullFileName));
+  return { fileName: fullFileName, save };
+};
+
+/** Friendly sentence for a toast after exporting */
+export const describeExport = (r: ExportResult, isSw: boolean): string => {
+  switch (r.save.status) {
+    case 'downloaded':
+      return isSw
+        ? `Faili limehifadhiwa kwenye Downloads: ${r.fileName}`
+        : `Saved to your Downloads folder: ${r.fileName}`;
+    case 'shared':
+      return isSw ? 'Chagua mahali pa kuhifadhi faili.' : 'Choose where to save the file.';
+    default:
+      return isSw ? `Faili limepakuliwa: ${r.fileName}` : `Downloaded: ${r.fileName}`;
+  }
 };

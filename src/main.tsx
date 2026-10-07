@@ -4,6 +4,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { FontSizeProvider } from './context/FontSizeContext';
 import { FontProvider } from './context/FontContext';
 import { ToastProvider } from './context/ToastContext';
+import { BannerProvider } from './context/BannerContext';
 import { installPressEffects } from './lib/pressEffects';
 import './index.css';
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById('root')!).render(
     <FontSizeProvider>
       <FontProvider>
         <ToastProvider>
-          <App />
+          <BannerProvider>
+            <App />
+          </BannerProvider>
         </ToastProvider>
       </FontProvider>
     </FontSizeProvider>
