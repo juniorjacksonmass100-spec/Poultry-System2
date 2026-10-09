@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { X, User, Mail, Shield, Phone, Calendar, LogOut, CheckCircle2 } from 'lucide-react';
+import { ProfileChangeSection } from '../requests/ProfileChangeSection';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -31,7 +32,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
       <div
-        className={`border rounded-2xl w-full max-w-md p-6 shadow-2xl relative transition-colors ${
+        className={`border rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto p-6 shadow-2xl relative transition-colors ${
           isLight
             ? 'bg-white border-teal-300 text-slate-900 shadow-xl'
             : 'bg-[#051315] border-[#00f5c4]/45 text-white shadow-[0_0_40px_rgba(0,245,196,0.22)]'
@@ -133,6 +134,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Ask the admin to change name / email / phone */}
+        <ProfileChangeSection />
 
         {/* User Data Management Option */}
         {onOpenDataManagement && (

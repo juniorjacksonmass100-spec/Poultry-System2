@@ -23,6 +23,8 @@ import {
   Moon,
   Scale,
   Settings,
+  MessageSquare,
+  BookOpen,
 } from 'lucide-react';
 
 export type NavigationTab = 
@@ -36,6 +38,8 @@ export type NavigationTab =
   | 'valuation'
   | 'reports'
   | 'news'
+  | 'messages'
+  | 'library'
   | 'admin';
 
 interface SidebarProps {
@@ -47,6 +51,8 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onOpenSignIn: () => void;
   onOpenSettings?: () => void;
+  /** Small red numbers on tabs, e.g. unread messages */
+  badges?: Partial<Record<NavigationTab, number>>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -58,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onOpenSignIn,
   onOpenSettings,
+  badges = {},
 }) => {
   const { t, lang } = useLanguage();
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -76,6 +83,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'valuation', label: lang === 'sw' ? 'Thamani na Bei' : 'Net Worth & Pricing', icon: Scale },
     { id: 'reports', label: t.reports, icon: BarChart3 },
     { id: 'news', label: t.newsAdvisory, icon: Newspaper },
+    { id: 'messages', label: lang === 'sw' ? 'Ujumbe' : 'Messages', icon: MessageSquare },
+    { id: 'library', label: lang === 'sw' ? 'Maktaba' : 'Library', icon: BookOpen },
     ...(isAdmin ? [{ id: 'admin', label: t.adminPanel, icon: ShieldCheck }] : []),
   ];
 
@@ -165,7 +174,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={item.id}
               onClick={() => handleNavClick(item.id as NavigationTab)}
               title={isCollapsed ? item.label : undefined}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 min-h-[48px] rounded-xl text-xs font-semibold transition-all group cursor-pointer ${
+              className={`relative w-full flex items-center gap-3 px-3.5 py-3 min-h-[48px] rounded-xl text-xs font-semibold transition-all group cursor-pointer ${
                 isActive
                   ? isLight
                     ? 'bg-teal-600 text-white font-bold shadow-md'
@@ -183,7 +192,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               />
               {(!isCollapsed || isMobileOpen) && (
-                <span className="truncate">{item.label}</span>
+                <span className="truncate flex-1 text-left">{item.label}</span>
+              )}
+              {(badges[item.id as NavigationTab] || 0) > 0 && (
+                <span
+                  className={`shrink-0 min-w-[22px] h-[22px] px-1.5 rounded-full bg-rose-600 text-white text-[11px] font-bold flex items-center justify-center ${
+                    isCollapsed && !isMobileOpen ? 'absolute top-1 right-1 min-w-[16px] h-[16px] text-[9px] px-1' : ''
+                  }`}
+                >
+                  {(badges[item.id as NavigationTab] || 0) > 9 ? '9+' : badges[item.id as NavigationTab]}
+                </span>
               )}
             </button>
           );

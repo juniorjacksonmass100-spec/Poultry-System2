@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { UserProfile, ActivityLog } from '../../types';
+import { UserProfile, ActivityLog, ProfileChangeRequest } from '../../types';
 import type { UserSummary } from '../../services/adminService';
+import { ChangeRequestsPanel } from '../requests/ChangeRequestsPanel';
 import { DangerZoneModal } from './DangerZoneModal';
 import { ConfirmModal } from '../common/ConfirmModal';
 import {
@@ -25,6 +26,8 @@ interface AdminDashboardProps {
   onRefreshData: () => Promise<void>;
   onViewUser: (user: UserProfile) => void;
   summaries: Record<string, UserSummary>;
+  changeRequests: ProfileChangeRequest[];
+  onRequestsDecided: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -36,6 +39,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onRefreshData,
   onViewUser,
   summaries,
+  changeRequests,
+  onRequestsDecided,
 }) => {
   const { t, lang } = useLanguage();
   const { user: currentAuthUser } = useAuth();
@@ -63,6 +68,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Farmers asking to change their details */}
+      <ChangeRequestsPanel requests={changeRequests} users={users} onDecided={onRequestsDecided} />
+
       {/* Header with admin status */}
       <div
         className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border rounded-2xl p-5 shadow-sm transition-colors ${

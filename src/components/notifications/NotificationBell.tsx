@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, BellRing, Egg, CheckCheck, Megaphone } from 'lucide-react';
+import { Bell, BellRing, Egg, CheckCheck, Megaphone, MessageSquare, UserCog } from 'lucide-react';
 import { PoultryNews } from '../../types';
 import { HatchAlert } from '../../hooks/useHatchReminders';
 import { useTheme } from '../../context/ThemeContext';
@@ -17,6 +17,12 @@ interface NotificationBellProps {
   onOpenMessages: () => void;
   onOpenBrooding: () => void;
   onMarkAllRead: () => void;
+  /** Unread direct messages */
+  chatUnread?: number;
+  onOpenChat?: () => void;
+  /** Admin: change requests waiting for review */
+  pendingRequests?: number;
+  onOpenRequests?: () => void;
 }
 
 const timeAgo = (iso: string, isSw: boolean): string => {
@@ -36,6 +42,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   onOpenMessages,
   onOpenBrooding,
   onMarkAllRead,
+  chatUnread = 0,
+  onOpenChat,
+  pendingRequests = 0,
+  onOpenRequests,
 }) => {
   const { theme } = useTheme();
   const { lang } = useLanguage();
@@ -46,7 +56,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const [permission, setPermission] = useState<PermissionState>('default');
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const count = unreadIds.size + hatchAlerts.length;
+  const count = unreadIds.size + hatchAlerts.length + chatUnread + pendingRequests;
 
   useEffect(() => {
     void getNotificationPermission().then(setPermission);
@@ -108,6 +118,46 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           </div>
 
           <div className="overflow-y-auto divide-y divide-slate-200/20">
+            {chatUnread > 0 && onOpenChat && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onOpenChat();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              >
+                <span className="shrink-0 w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold">
+                    {isSw ? `Ujumbe ${chatUnread} mpya` : `${chatUnread} new message${chatUnread === 1 ? '' : 's'}`}
+                  </span>
+                  <span className={`block text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-[#a2ccc8]'}`}>{isSw ? 'Gusa kusoma' : 'Tap to read'}</span>
+                </span>
+              </button>
+            )}
+            {pendingRequests > 0 && onOpenRequests && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onOpenRequests();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left"
+              >
+                <span className="shrink-0 w-9 h-9 rounded-full bg-amber-500 text-amber-950 flex items-center justify-center">
+                  <UserCog className="w-4 h-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold">
+                    {isSw ? `Maombi ${pendingRequests} yanasubiri ukaguzi` : `${pendingRequests} change request${pendingRequests === 1 ? '' : 's'} to review`}
+                  </span>
+                  <span className={`block text-xs mt-0.5 ${isLight ? 'text-slate-600' : 'text-[#a2ccc8]'}`}>{isSw ? 'Gusa kukagua' : 'Tap to review'}</span>
+                </span>
+              </button>
+            )}
             {hatchAlerts.map((a) => (
               <button
                 key={a.id}
@@ -155,7 +205,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
               );
             })}
 
-            {shown.length === 0 && hatchAlerts.length === 0 && (
+            {shown.length === 0 && hatchAlerts.length === 0 && chatUnread === 0 && pendingRequests === 0 && (
               <div className="px-4 py-8 text-center text-xs opacity-70">{isSw ? 'Hakuna arifa bado.' : 'No notifications yet.'}</div>
             )}
           </div>

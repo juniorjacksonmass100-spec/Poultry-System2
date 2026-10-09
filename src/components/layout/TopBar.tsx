@@ -105,6 +105,10 @@ export const TopBar: React.FC<TopBarProps> = ({
         return t.sales;
       case 'financials':
         return t.financials;
+      case 'messages':
+        return lang === 'sw' ? 'Ujumbe' : 'Messages';
+      case 'library':
+        return lang === 'sw' ? 'Maktaba ya Vitabu' : 'Book Library';
       case 'valuation':
         return lang === 'sw' ? 'Thamani na Bei' : 'Net Worth & Pricing';
       case 'reports':

@@ -251,3 +251,44 @@ export interface PoultryNews {
   created_at: string;
   is_read?: boolean;
 }
+
+/** One chat message. Each farmer has one conversation (thread) with the admin. */
+export interface DirectMessage {
+  id: string;
+  /** The farmer this conversation belongs to */
+  thread_user_id: string;
+  sender_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+  /** Only on this device while the message is still being sent */
+  pending?: boolean;
+}
+
+export type ChangeField = 'email' | 'phone' | 'full_name';
+export type ChangeStatus = 'pending' | 'approved' | 'rejected';
+
+/** A farmer's request to change their details. Nothing changes until an admin approves. */
+export interface ProfileChangeRequest {
+  id: string;
+  user_id: string;
+  field: ChangeField;
+  old_value: string | null;
+  new_value: string;
+  status: ChangeStatus;
+  admin_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+/** A PDF in the admin's library. The file itself lives in a private storage bucket. */
+export interface Book {
+  id: string;
+  title: string;
+  description: string | null;
+  storage_path: string;
+  file_size: number;
+  is_published: boolean;
+  uploaded_by: string | null;
+  created_at: string;
+}

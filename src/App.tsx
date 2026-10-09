@@ -16,6 +16,11 @@ import { fetchValuations } from './services/valuationService';
 import { NotificationBell } from './components/notifications/NotificationBell';
 import { useNewsNotifications } from './hooks/useNewsNotifications';
 import { useHatchReminders } from './hooks/useHatchReminders';
+import { useChat } from './hooks/useChat';
+import { useChangeRequests } from './hooks/useChangeRequests';
+import { MessagesView } from './components/messages/MessagesView';
+import { LibraryView } from './components/library/LibraryView';
+import { fetchBooks, uploadBook, setBookPublished, deleteBook } from './services/bookService';
 import { TopBar } from './components/layout/TopBar';
 import { SchemaSetupNotice } from './components/common/SchemaSetupNotice';
 
@@ -102,6 +107,7 @@ import {
   ActivityLog,
   PoultryNews,
   PoultryValuation,
+  Book,
 } from './types';
 import { ShieldAlert, Loader2, LogIn, Sparkles } from 'lucide-react';
 
@@ -134,6 +140,9 @@ const MainAppContent: React.FC = () => {
   const [isDataManagementOpen, setIsDataManagementOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [valuations, setValuations] = useState<PoultryValuation[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
+  // Admin: which farmer's conversation is open in Messages (null = the inbox)
+  const [chatThread, setChatThread] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
 
   // Modals Open State
@@ -179,6 +188,7 @@ const MainAppContent: React.FC = () => {
         nData,
         summaryData,
         valuationData,
+        bookData,
       ] = await Promise.all([
         fetchPoultryStocks(),
         fetchEggProductions(),
@@ -191,6 +201,7 @@ const MainAppContent: React.FC = () => {
         fetchNewsForUser(),
         isAdmin ? fetchUserSummaries() : Promise.resolve({}),
         fetchValuations(),
+        fetchBooks(),
       ]);
 
       if (seq !== loadSeq.current) return; // a newer load is in charge
@@ -203,6 +214,7 @@ const MainAppContent: React.FC = () => {
       setSales(sData);
       setNews(nData);
       setValuations(valuationData);
+      setBooks(bookData);
       if (isAdmin) {
         setUsers(uData);
         setActivityLogs(actData);
@@ -291,6 +303,13 @@ const MainAppContent: React.FC = () => {
           { event: '*', schema: 'public', table: 'poultry_stock' },
           () => {
             fetchPoultryStocks().then(setPoultry);
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'books' },
+          () => {
+            fetchBooks().then(setBooks);
           }
         )
         .on(
@@ -389,6 +408,47 @@ const MainAppContent: React.FC = () => {
   });
   const { alerts: hatchAlerts } = useHatchReminders(brooding, notificationsOn, isSw, () => setCurrentTab('brooding'));
 
+  // Direct messages with the admin (farmer) / with every farmer (admin), kept live
+  const userName = useCallback(
+    (id: string) => {
+      const u = users.find((x) => x.id === id);
+      return u?.full_name || u?.email || (isSw ? 'Mtumiaji' : 'User');
+    },
+    [users, isSw]
+  );
+  const openChatThread = currentTab === 'messages' ? (isAdmin ? chatThread : user?.id ?? null) : null;
+  const chat = useChat({
+    userId: user?.id ?? null,
+    isAdmin,
+    enabled: Boolean(user) && isSupabaseConfigured,
+    isSw,
+    nameOf: (threadId) => (isAdmin ? userName(threadId) : isSw ? 'Msimamizi' : 'Admin'),
+    openThread: openChatThread,
+    onOpen: (threadId) => {
+      if (isAdmin) setChatThread(threadId);
+      setCurrentTab('messages');
+    },
+  });
+
+  // Farmers asking to change their email / phone / name; the admin decides
+  const changeRequests = useChangeRequests({
+    userId: user?.id ?? null,
+    isAdmin,
+    enabled: Boolean(user) && isSupabaseConfigured,
+    isSw,
+    nameOf: userName,
+    onMyRequestApproved: async () => {
+      // The login email may have changed: get a fresh session, then reload the profile
+      try {
+        await supabase?.auth.refreshSession();
+      } catch {
+        // the next sign-in picks it up
+      }
+      await refreshProfile();
+    },
+    onOpenAdmin: () => setCurrentTab('admin'),
+  });
+
   // Derived Financial Calculations strictly from actual records
   const financials = useMemo(() => {
     return calculateFinancials(sales, expenses, poultry, eggs);
@@ -472,6 +532,7 @@ const MainAppContent: React.FC = () => {
         onCloseMobile={() => setIsMobileOpen(false)}
         onOpenSignIn={() => setShowAuthModal(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        badges={{ messages: chat.unread, admin: isAdmin ? changeRequests.pending.length : 0 }}
       />
 
       {/* Main Content Area */}
@@ -496,6 +557,10 @@ const MainAppContent: React.FC = () => {
                 onOpenMessages={() => setCurrentTab('news')}
                 onOpenBrooding={() => setCurrentTab('brooding')}
                 onMarkAllRead={markAllRead}
+                chatUnread={chat.unread}
+                onOpenChat={() => setCurrentTab('messages')}
+                pendingRequests={isAdmin ? changeRequests.pending.length : 0}
+                onOpenRequests={() => setCurrentTab('admin')}
               />
             }
           />
@@ -689,6 +754,43 @@ const MainAppContent: React.FC = () => {
                 />
               )}
 
+              {/* Tab: direct messages */}
+              {currentTab === 'messages' && user && (
+                <MessagesView
+                  me={user.id}
+                  isAdmin={isAdmin}
+                  messages={chat.messages}
+                  users={users}
+                  openThread={chatThread}
+                  onOpenThread={setChatThread}
+                  onSend={chat.send}
+                  onDelete={chat.remove}
+                  onMarkRead={chat.markRead}
+                />
+              )}
+
+              {/* Tab: book library (read-only inside the app) */}
+              {currentTab === 'library' && user && (
+                <LibraryView
+                  books={books}
+                  isAdmin={isAdmin}
+                  userId={user.id}
+                  readerLabel={profile?.full_name ? `${profile.full_name} · ${user.email}` : user.email || 'KukuTrack'}
+                  onUpload={async (file, title, description) => {
+                    const created = await uploadBook(file, title, description);
+                    setBooks((prev) => [created, ...prev.filter((b) => b.id !== created.id)]);
+                  }}
+                  onTogglePublished={async (book) => {
+                    await setBookPublished(book.id, !book.is_published);
+                    setBooks((prev) => prev.map((b) => (b.id === book.id ? { ...b, is_published: !b.is_published } : b)));
+                  }}
+                  onDelete={async (book) => {
+                    await deleteBook(book);
+                    setBooks((prev) => prev.filter((b) => b.id !== book.id));
+                  }}
+                />
+              )}
+
               {/* Tab: Net worth and recommended selling price */}
               {currentTab === 'valuation' && (
                 <ValuationView
@@ -745,6 +847,8 @@ const MainAppContent: React.FC = () => {
                   users={users}
                   activityLogs={activityLogs}
                   summaries={userSummaries}
+                  changeRequests={changeRequests.requests}
+                  onRequestsDecided={changeRequests.refresh}
                   onViewUser={(target) => {
                     setViewAsUser(target);
                     setCurrentTab('dashboard');
