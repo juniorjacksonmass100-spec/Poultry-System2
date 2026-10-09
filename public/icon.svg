@@ -1,53 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <radialGradient id="neonGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#00f5c4" stop-opacity="0.3" />
-      <stop offset="100%" stop-color="#020708" stop-opacity="0" />
-    </radialGradient>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#051417" />
-      <stop offset="100%" stop-color="#010607" />
-    </linearGradient>
-    <linearGradient id="neonStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00f5c4" />
-      <stop offset="100%" stop-color="#14b8a6" />
-    </linearGradient>
-  </defs>
-
-  <!-- Background -->
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
-  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="url(#neonStroke)" stroke-width="8" stroke-opacity="0.4" />
-  <circle cx="256" cy="256" r="220" fill="url(#neonGlow)" />
-
-  <!-- Bird / Rooster Icon -->
-  <g transform="translate(106, 96) scale(0.6)" fill="none" stroke="#00f5c4" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Tail & Body -->
-    <path d="M 80 320 C 60 260, 90 180, 160 160 C 240 140, 320 180, 360 260 C 380 300, 370 360, 320 400 C 260 440, 150 430, 100 370 Z" fill="#00f5c4" fill-opacity="0.12" />
-    
-    <!-- Wing arc -->
-    <path d="M 180 260 Q 240 260 270 320 Q 220 350 170 320 Z" fill="#00f5c4" fill-opacity="0.25" stroke="#00f5c4" />
-
-    <!-- Neck & Head -->
-    <path d="M 280 180 C 290 140, 320 90, 360 90 C 400 90, 420 130, 410 170" />
-    
-    <!-- Comb -->
-    <path d="M 350 80 Q 360 40 380 60 Q 400 30 410 65 Q 430 45 435 80" stroke="#f43f5e" stroke-width="24" fill="#f43f5e" fill-opacity="0.2" />
-
-    <!-- Beak -->
-    <polygon points="415,120 465,135 415,155" fill="#f59e0b" stroke="#f59e0b" stroke-width="12" />
-
-    <!-- Wattle -->
-    <path d="M 405 165 C 415 185, 410 205, 395 205 C 385 205, 385 185, 395 170" fill="#f43f5e" stroke="#f43f5e" stroke-width="12" />
-
-    <!-- Eye -->
-    <circle cx="380" cy="120" r="10" fill="#ffffff" stroke="none" />
-    <circle cx="383" cy="120" r="5" fill="#020708" stroke="none" />
-
-    <!-- Legs -->
-    <line x1="220" y1="420" x2="210" y2="470" stroke-width="20" stroke="#00f5c4" />
-    <line x1="190" y1="470" x2="230" y2="470" stroke-width="20" stroke="#00f5c4" />
-    
-    <line x1="280" y1="410" x2="280" y2="470" stroke-width="20" stroke="#00f5c4" />
-    <line x1="260" y1="470" x2="300" y2="470" stroke-width="20" stroke="#00f5c4" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs>
+  <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFBF2"/><stop offset="1" stop-color="#F6E6C8"/></linearGradient>
+  <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14A38F"/><stop offset="1" stop-color="#064E45"/></linearGradient>
+</defs><rect width="512" height="512" rx="112" fill="url(#bgGrad)"/><circle cx="256" cy="256" r="196" fill="#fff" opacity="0.06"/><g transform="translate(256 262) scale(0.98) translate(-242 -285)"><!-- Hen facing right, drawn in a 512x512 box (content roughly x 40-445, y 105-465) -->
+<g id="hen">
+  <!-- tail feathers (back to front) -->
+  <path d="M158 292 C84 292 36 236 38 160 C92 176 138 222 168 282 Z" fill="#C9702A"/>
+  <path d="M156 280 C92 250 66 192 78 124 C122 148 158 198 172 266 Z" fill="#8F4A1C"/>
+  <path d="M160 300 C108 318 62 304 36 262 C84 252 134 262 172 290 Z" fill="#E0923A"/>
+  <!-- legs -->
+  <g stroke="#F59E0B" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M232 396 L228 448 M228 448 L204 458 M228 448 L232 462 M228 448 L252 458"/>
+    <path d="M290 392 L296 446 M296 446 L272 458 M296 446 L300 462 M296 446 L320 456"/>
   </g>
-</svg>
+  <!-- body -->
+  <ellipse cx="256" cy="304" rx="152" ry="108" fill="url(#bodyGrad)"/>
+  <!-- neck + head -->
+  <ellipse cx="338" cy="236" rx="62" ry="82" transform="rotate(-18 338 236)" fill="#FFF9EE"/>
+  <circle cx="352" cy="180" r="54" fill="#FFF8EA"/>
+  <!-- comb -->
+  <g fill="#E53935">
+    <circle cx="326" cy="132" r="19"/>
+    <circle cx="352" cy="120" r="22"/>
+    <circle cx="380" cy="132" r="19"/>
+    <rect x="318" y="132" width="70" height="22" rx="10"/>
+  </g>
+  <!-- wattle -->
+  <path d="M388 218 C372 222 368 250 384 262 C400 252 402 226 388 218 Z" fill="#E53935"/>
+  <!-- beak -->
+  <path d="M398 172 L446 190 L398 210 Z" fill="#FFB300"/>
+  <path d="M398 190 L446 190" stroke="#E69500" stroke-width="3" stroke-linecap="round"/>
+  <!-- eye -->
+  <circle cx="372" cy="170" r="9" fill="#1B1B1B"/>
+  <circle cx="375" cy="167" r="3" fill="#fff"/>
+  <!-- wing -->
+  <path d="M184 292 C196 232 290 232 346 290 C338 346 250 372 188 328 C180 316 180 304 184 292 Z" fill="#F2B15E"/>
+  <g fill="none" stroke="#D58A2E" stroke-width="7" stroke-linecap="round">
+    <path d="M214 296 C250 276 296 280 326 302"/>
+    <path d="M214 322 C250 306 292 308 318 326"/>
+  </g>
+</g>
+</g></svg>

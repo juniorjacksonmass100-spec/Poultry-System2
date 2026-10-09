@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, ZoomIn, ZoomOut, ShieldAlert, Loader2 } from 'lucide-react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { Book } from '../../types';
@@ -143,6 +144,8 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
   const [zoom, setZoom] = useState(1);
   const [containerWidth, setContainerWidth] = useState(0);
   const [shielded, setShielded] = useState(false);
+  // Tap the page to hide the toolbar for the most reading room
+  const [barVisible, setBarVisible] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -200,7 +203,11 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const measure = () => setContainerWidth(Math.max(240, el.clientWidth - 16));
+    // Phones: the page uses the whole screen width. Bigger screens: a comfortable reading width, centred.
+    const measure = () => {
+      const w = el.clientWidth;
+      setContainerWidth(w < 700 ? w : Math.min(w - 48, 1100));
+    };
     measure();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(measure);
@@ -296,10 +303,11 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
   const pages = useMemo(() => Array.from({ length: pdf?.numPages || 0 }, (_, i) => i + 1), [pdf]);
   const block = (e: React.SyntheticEvent) => e.preventDefault();
 
-  return (
+  const reader = (
     <div
       ref={rootRef}
       className="kuku-secure-reader fixed inset-0 z-[110] flex flex-col bg-[#0b1213] text-white select-none"
+      data-testid="book-reader"
       style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
       onContextMenu={block}
       onCopy={block}
@@ -309,9 +317,9 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
       aria-modal="true"
       aria-label={book.title}
     >
-      {/* Top bar */}
+      {/* Top bar (tap the page to hide or show it) */}
       <div
-        className="shrink-0 flex items-center gap-2 px-2 pb-2 bg-[#101c1d] border-b border-white/10"
+        className={`shrink-0 flex items-center gap-2 px-2 pb-2 bg-[#101c1d] border-b border-white/10 ${barVisible ? '' : 'hidden'}`}
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
       >
         <button type="button" onClick={onClose} className="w-12 h-12 rounded-xl flex items-center justify-center text-white/90" aria-label={isSw ? 'Funga' : 'Close'}>
@@ -345,7 +353,11 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
 
       {/* Pages */}
       <div className="relative flex-1 min-h-0">
-        <div ref={scrollRef} className="absolute inset-0 overflow-auto px-2 py-3 space-y-3 kuku-reader-pages">
+        <div
+          ref={scrollRef}
+          onClick={() => setBarVisible((v) => !v)}
+          className="absolute inset-0 overflow-auto py-2 space-y-2 kuku-reader-pages"
+        >
           {status === 'loading' && (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-white/70">
               <Loader2 className="w-8 h-8 kuku-spin" />
@@ -369,6 +381,19 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
             ))}
         </div>
 
+        {/* While the toolbar is hidden a small close button stays reachable */}
+        {!barVisible && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute z-20 left-2 w-11 h-11 rounded-full bg-black/55 flex items-center justify-center text-white"
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)' }}
+            aria-label={isSw ? 'Funga' : 'Close'}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
         {/* Privacy shield: pages are hidden whenever the app loses focus */}
         {shielded && (
           <div className="absolute inset-0 z-10 bg-[#0b1213] flex flex-col items-center justify-center gap-2 text-center px-8">
@@ -382,4 +407,7 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, readerLabel, userI
       </div>
     </div>
   );
+
+  // At the top of the page, never inside the screen content, so it always covers the whole screen
+  return createPortal(reader, document.body);
 };

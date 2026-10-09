@@ -180,7 +180,8 @@ button:focus-visible, [role="button"]:focus-visible {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.kuku-tab-enter { animation: kuku-fade-up 300ms ease-out both; }
+/* backwards (not both): no transform is left behind after the animation, so full-screen dialogs inside a tab really cover the whole screen */
+.kuku-tab-enter { animation: kuku-fade-up 300ms ease-out backwards; }
 .kuku-toast { animation: kuku-toast-in 220ms ease-out both; }
 
 /* The dialogs in this app already use these class names */
