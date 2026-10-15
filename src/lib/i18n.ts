@@ -370,6 +370,21 @@ export interface Translations {
   confirmDataDeletion: string;
   confirmDataDeletionDesc: string;
   yesDeleteData: string;
+  backupTitle: string;
+  backupDescription: string;
+  backupRestoreDescription: string;
+  createBackup: string;
+  backupCreating: string;
+  backupCreated: string;
+  backupChooseLocation: string;
+  chooseBackupFile: string;
+  backupRestoreConfirm: string;
+  restoreBackup: string;
+  backupRestoring: string;
+  backupRestored: string;
+  backupRecords: string;
+  backupFailed: string;
+  backupRestoreFailed: string;
 
   // Admin Dashboard
   adminDashboard: string;
@@ -614,7 +629,7 @@ export const translations: Record<Language, Translations> = {
     hatchRate: 'Hatch Success Rate %',
     deleteBroodingConfirm: 'Are you sure you want to delete this incubation batch? This action cannot be undone.',
     deleteBroodingTitle: 'Delete Brooding Batch',
-    incubationNotice: 'Default incubation: Chicken 21 days · Duck 40 days',
+    incubationNotice: 'Default incubation: Chicken 21 days · Duck 28 days',
     noBroodingFound: 'No brooding records found',
     noBroodingDesc: 'Register your first brooding batch or incubator run.',
     poultryTagCol: 'Poultry / Tag',
@@ -790,6 +805,21 @@ export const translations: Record<Language, Translations> = {
     confirmDataDeletion: 'Confirm Data Deletion',
     confirmDataDeletionDesc: 'Are you sure you want to delete these records entered in error? This action cannot be reversed.',
     yesDeleteData: 'Yes, Delete This Data',
+    backupTitle: 'Farm Data Backup',
+    backupDescription: 'Save a copy of your poultry, egg, hatching, expense, sales, customer, and custom expense category records as a JSON file.',
+    backupRestoreDescription: 'Restoring adds missing records and updates records with matching IDs. Other current records stay unchanged. The file contains farm and customer information; store it securely.',
+    createBackup: 'Create backup',
+    backupCreating: 'Creating backup…',
+    backupCreated: 'Backup saved:',
+    backupChooseLocation: 'Choose where to save the backup file.',
+    chooseBackupFile: 'Choose backup file',
+    backupRestoreConfirm: 'Records in this backup will be added. Records with matching IDs will be updated.',
+    restoreBackup: 'Restore backup',
+    backupRestoring: 'Restoring…',
+    backupRestored: 'Backup restored. Records processed:',
+    backupRecords: 'records.',
+    backupFailed: 'Could not create the backup. Check your database connection and try again.',
+    backupRestoreFailed: 'Could not restore the backup. Check that you selected a valid backup file and try again.',
 
     adminDashboard: 'Administrator Central Console',
     registeredUsers: 'Registered Team Members',
@@ -982,9 +1012,9 @@ export const translations: Record<Language, Translations> = {
     notesPlaceholder: 'mf. Wamepewa chanjo ya Gumboro walipofika',
 
     indigenousChicken: 'Kuku wa Kienyeji',
-    crossbredChicken: 'Kuku wa Chotara (Dual Purpose)',
-    broiler: 'Kuku wa Nyama (Broiler)',
-    layer: 'Kuku wa Mayai (Layer)',
+    crossbredChicken: 'Kuku wa Chotara',
+    broiler: 'Kuku wa Nyama',
+    layer: 'Kuku wa Mayai',
     duck: 'Bata wa Kawaida',
     turkey: 'Bata Mzinga',
     otherPoultry: 'Aina Nyingine ya Ndege',
@@ -1031,7 +1061,7 @@ export const translations: Record<Language, Translations> = {
     hatchRate: 'Kiwango cha Mafanikio %',
     deleteBroodingConfirm: 'Una uhakika unataka kufuta kundi hili la utotoleshaji? Kitendo hiki hakiwezi kurudishwa.',
     deleteBroodingTitle: 'Futa Kundi la Utotoleshaji',
-    incubationNotice: 'Muda wa kulalia: Kuku siku 21 · Bata siku 40',
+    incubationNotice: 'Muda wa kuatamia: Kuku siku 21 · Bata siku 28',
     noBroodingFound: 'Hakuna kumbukumbu za utotoleshaji',
     noBroodingDesc: 'Sajili kundi la kwanza la mayai yanayolaliwa au mashine ya kutotolesha.',
     poultryTagCol: 'Aina ya Kuku / Lebo',
@@ -1201,12 +1231,27 @@ export const translations: Record<Language, Translations> = {
     accountDataManagementDesc: 'Futa kumbukumbu zenye makosa au anzisha upya sehemu maalum za akaunti yako',
     clearErroneousData: 'Futa Data Zenye Makosa kwenye Akaunti',
     clearDataBtn: 'Futa Data Hizi',
-    fullAccountReset: 'Kuanza Upya Akaunti Nzima (Clean Slate)',
+    fullAccountReset: 'Kufuta Taarifa Zote za Akaunti',
     fullAccountResetDesc: 'Futa kabisa data zote za majaribio au makosa (kuku, mayai, utotoleshaji, gharama na mauzo) na uanze upya.',
     resetAllDataBtn: 'Futa Data Zangu Zote',
     confirmDataDeletion: 'Thibitisha Kufuta Data',
     confirmDataDeletionDesc: 'Una uhakika unataka kufuta rekodi hizi zilizotokea kwa makosa? Kitendo hiki hakiwezi kurudishwa.',
     yesDeleteData: 'Ndio, Futa Data Hizi',
+    backupTitle: 'Nakala ya Taarifa za Shamba',
+    backupDescription: 'Hifadhi nakala ya taarifa za kuku, mayai, utotoleshaji, matumizi, mauzo, wateja na aina za matumizi ulizoongeza. Faili itakuwa katika mfumo wa JSON.',
+    backupRestoreDescription: 'Kurejesha nakala huongeza kumbukumbu zinazokosekana na kusasisha zenye vitambulisho vinavyofanana. Kumbukumbu nyingine zilizopo hazitabadilika. Faili hii ina taarifa za shamba na wateja; ihifadhi mahali salama.',
+    createBackup: 'Tengeneza nakala',
+    backupCreating: 'Inatengeneza nakala…',
+    backupCreated: 'Nakala imehifadhiwa:',
+    backupChooseLocation: 'Chagua mahali pa kuhifadhi faili la nakala.',
+    chooseBackupFile: 'Chagua faili la nakala',
+    backupRestoreConfirm: 'Kumbukumbu zilizo kwenye nakala zitaongezwa. Zenye vitambulisho vinavyofanana zitasasishwa.',
+    restoreBackup: 'Rejesha nakala',
+    backupRestoring: 'Inarejesha…',
+    backupRestored: 'Nakala imerejeshwa. Kumbukumbu zilizosajiliwa:',
+    backupRecords: 'kumbukumbu.',
+    backupFailed: 'Imeshindikana kutengeneza nakala. Angalia muunganisho wa hifadhidata kisha ujaribu tena.',
+    backupRestoreFailed: 'Imeshindikana kurejesha nakala. Hakikisha umechagua faili sahihi kisha ujaribu tena.',
 
     adminDashboard: 'Kituo Kikuu cha Msimamizi',
     registeredUsers: 'Watumiaji Waliosajiliwa',

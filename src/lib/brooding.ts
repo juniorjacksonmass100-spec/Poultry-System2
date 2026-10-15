@@ -2,6 +2,14 @@ import { BroodingRecord } from '../types';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Format a date using the device's local calendar day (avoids UTC day shifts). */
+export const localDateISO = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 /** "2026-10-07" -> local midnight (so "today" never flips because of time zones) */
 export const parseLocalDate = (iso: string | null | undefined): Date | null => {
   if (!iso) return null;

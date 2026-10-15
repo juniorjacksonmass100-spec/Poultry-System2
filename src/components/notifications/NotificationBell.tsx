@@ -221,7 +221,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
               ) : (
                 <button
                   type="button"
-                  onClick={async () => setPermission(await requestNotificationPermission())}
+                  onClick={async () => setPermission(await requestNotificationPermission(isSw))}
                   className={`w-full py-3 rounded-xl font-bold ${isLight ? 'bg-teal-600 text-white' : 'bg-[#00f5c4] text-[#02211b]'}`}
                 >
                   {isSw ? 'Washa arifa za simu' : 'Turn on phone alerts'}

@@ -3,6 +3,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { BroodingRecord, BroodingStatus } from '../../types';
 import { calculateExpectedHatchDate } from '../../services/broodingService';
+import { localDateISO } from '../../lib/brooding';
 import { X, AlertCircle } from 'lucide-react';
 
 interface BroodingModalProps {
@@ -27,7 +28,7 @@ export const BroodingModal: React.FC<BroodingModalProps> = ({
   const [poultryType, setPoultryType] = useState('Chicken');
   const [numberOfEggs, setNumberOfEggs] = useState<number>(10);
   const [incubationDays, setIncubationDays] = useState<number>(21);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(localDateISO());
   const [actualHatchDate, setActualHatchDate] = useState('');
   const [eggsHatched, setEggsHatched] = useState<number>(0);
   const [eggsFailed, setEggsFailed] = useState<number>(0);
@@ -41,7 +42,7 @@ export const BroodingModal: React.FC<BroodingModalProps> = ({
     setPoultryType(newType);
     if (!initialData) {
       if (newType.toLowerCase().includes('duck') || newType.toLowerCase().includes('bata')) {
-        setIncubationDays(40);
+        setIncubationDays(28);
       } else {
         setIncubationDays(21);
       }
@@ -66,7 +67,7 @@ export const BroodingModal: React.FC<BroodingModalProps> = ({
       setPoultryType('Chicken');
       setNumberOfEggs(10);
       setIncubationDays(21);
-      setStartDate(new Date().toISOString().split('T')[0]);
+      setStartDate(localDateISO());
       setActualHatchDate('');
       setEggsHatched(0);
       setEggsFailed(0);
@@ -190,7 +191,7 @@ export const BroodingModal: React.FC<BroodingModalProps> = ({
                 className={inputClass}
               >
                 <option value="Chicken">{isSw ? 'Kuku (Siku 21)' : 'Chicken (21 days)'}</option>
-                <option value="Duck">{isSw ? 'Bata (Siku 40)' : 'Duck (40 days)'}</option>
+                <option value="Duck">{isSw ? 'Bata (Siku 28)' : 'Duck (28 days)'}</option>
                 <option value="Turkey">{isSw ? 'Uturuki (Siku 28)' : 'Turkey (28 days)'}</option>
                 <option value="Quail">{isSw ? 'Kware (Siku 17)' : 'Quail (17 days)'}</option>
                 <option value="Other">{t.otherPoultry}</option>

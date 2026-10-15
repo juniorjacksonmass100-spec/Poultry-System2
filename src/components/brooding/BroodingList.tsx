@@ -13,6 +13,7 @@ import {
   milestoneText,
   countdownLabel,
 } from '../../lib/brooding';
+import { poultryTypeLabel } from '../../lib/poultryLabels';
 
 interface BroodingListProps {
   records: BroodingRecord[];
@@ -239,7 +240,7 @@ export const BroodingList: React.FC<BroodingListProps> = ({
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <div className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      {rec.poultry_type}
+                      {poultryTypeLabel(rec.poultry_type, isSw)}
                       <span className={`ml-1.5 text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-[#8fbdb8]'}`}>
                         {rec.number_of_eggs.toLocaleString()} {isSw ? 'mayai' : 'eggs'}
                       </span>
@@ -338,7 +339,7 @@ export const BroodingList: React.FC<BroodingListProps> = ({
                             isLight ? 'text-slate-900' : 'text-white'
                           }`}
                         >
-                          {rec.poultry_type}
+                          {poultryTypeLabel(rec.poultry_type, isSw)}
                         </div>
                         <div
                           className={`text-[11px] font-mono ${

@@ -12,22 +12,29 @@
     font-family: var(--font-sans);
     background-color: #020708;
     color: #ffffff;
-    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: contain;
   }
 }
 
+html { scroll-behavior: smooth; }
+.kuku-app-shell { min-height: 100svh; min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+
 /* Neon Glow Utilities */
 .neon-glow {
-  box-shadow: 0 0 16px rgba(0, 245, 196, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 80, 70, 0.12);
 }
 
 .neon-glow-sm {
-  box-shadow: 0 0 8px rgba(0, 245, 196, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 80, 70, 0.1);
 }
 
 .neon-glow-lg {
-  box-shadow: 0 0 25px rgba(0, 245, 196, 0.45);
+  box-shadow: 0 6px 20px rgba(0, 80, 70, 0.16);
 }
 
 .neon-border {
@@ -40,7 +47,7 @@
 
 .neon-text {
   color: #00f5c4;
-  text-shadow: 0 0 12px rgba(0, 245, 196, 0.5);
+  text-shadow: none;
 }
 
 /* Custom scrollbars for data tables and sidebars with aqua tint */
@@ -124,13 +131,13 @@ button, [role="button"] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition-property: color, background-color, border-color, box-shadow, scale, filter, opacity, transform;
-  transition-duration: 160ms;
-  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
 button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
-  scale: 0.94;
-  filter: brightness(1.15);
+  scale: 0.97;
+  filter: brightness(1.02);
   transition-duration: 70ms;
 }
 @media (hover: hover) {
@@ -193,6 +200,11 @@ button:focus-visible, [role="button"]:focus-visible {
 @media (hover: hover) {
   .kuku-lift { transition: translate 180ms ease, box-shadow 180ms ease; }
   .kuku-lift:hover { translate: 0 -2px; }
+}
+
+/* Prevent mobile Safari from zooming into small form fields on focus. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: max(16px, 1em); }
 }
 
 @media (prefers-reduced-motion: reduce) {

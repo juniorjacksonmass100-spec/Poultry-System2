@@ -521,7 +521,7 @@ const MainAppContent: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen flex transition-colors duration-200 ${isLight ? 'bg-[#f4f7f6] text-slate-900' : 'bg-[#020708] text-white'}`}>
+    <div className={`kuku-app-shell min-h-screen flex transition-colors duration-200 ${isLight ? 'bg-[#f4f7f6] text-slate-900' : 'bg-[#020708] text-white'}`}>
       {/* Sidebar Navigation */}
       <Sidebar
         currentTab={currentTab}
@@ -1016,9 +1016,9 @@ const MainAppContent: React.FC = () => {
           expenses: expenses.length,
           sales: sales.length,
         }}
-        onDataCleared={async () => {
+        onDataChanged={async () => {
           await loadAllData();
-          notify('success', isSw ? 'Data imefutwa.' : 'Records cleared.');
+          notify('success', isSw ? 'Taarifa za akaunti zimesasishwa.' : 'Account records updated.');
         }}
       />
     </div>

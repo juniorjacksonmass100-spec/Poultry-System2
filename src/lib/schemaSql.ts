@@ -271,7 +271,7 @@ CREATE TABLE IF NOT EXISTS public.business_settings (
     currency TEXT NOT NULL DEFAULT 'TZS',
     address TEXT,
     default_chicken_incubation_days INTEGER NOT NULL DEFAULT 21,
-    default_duck_incubation_days INTEGER NOT NULL DEFAULT 40,
+    default_duck_incubation_days INTEGER NOT NULL DEFAULT 28,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

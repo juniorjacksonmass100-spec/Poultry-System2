@@ -39,15 +39,19 @@ export const getNotificationPermission = async (): Promise<PermissionState> => {
   }
 };
 
-export const requestNotificationPermission = async (): Promise<PermissionState> => {
+export const requestNotificationPermission = async (isSw = false): Promise<PermissionState> => {
   try {
     if (isNative()) {
       const r = await LocalNotifications.requestPermissions();
-      if (r.display === 'granted') await ensureChannels();
+      if (r.display === 'granted') {
+        await ensureChannels(isSw);
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('kukutrack:notification-permission-changed'));
+      }
       return r.display === 'granted' ? 'granted' : 'denied';
     }
     if (typeof Notification === 'undefined') return 'unsupported';
     const result = await Notification.requestPermission();
+    if (result === 'granted' && typeof window !== 'undefined') window.dispatchEvent(new Event('kukutrack:notification-permission-changed'));
     return result as PermissionState;
   } catch {
     return 'unsupported';
@@ -56,13 +60,13 @@ export const requestNotificationPermission = async (): Promise<PermissionState> 
 
 let channelsReady = false;
 /** Android 8+ needs channels; "messages" is loud and pops up like WhatsApp, "hatch" is for reminders. */
-export const ensureChannels = async (): Promise<void> => {
+export const ensureChannels = async (isSw = false): Promise<void> => {
   if (!isNative() || channelsReady) return;
   try {
     await LocalNotifications.createChannel({
       id: 'messages',
-      name: 'Messages from administrator',
-      description: 'Advisories and announcements',
+      name: isSw ? 'Ujumbe wa shamba' : 'Farm messages',
+      description: isSw ? 'Ushauri na matangazo ya shamba' : 'Farm advisories and announcements',
       importance: 5,
       visibility: 1,
       vibration: true,
@@ -71,8 +75,8 @@ export const ensureChannels = async (): Promise<void> => {
     });
     await LocalNotifications.createChannel({
       id: 'hatch',
-      name: 'Hatch reminders',
-      description: 'Reminders when eggs are about to hatch',
+      name: isSw ? 'Vikumbusho vya kutotolewa' : 'Hatch reminders',
+      description: isSw ? 'Vikumbusho vya siku ya kutotolewa kwa mayai' : 'Reminders for expected hatch days',
       importance: 4,
       visibility: 1,
       vibration: true,
@@ -88,6 +92,7 @@ export interface SystemNotification {
   title: string;
   body: string;
   channel?: 'messages' | 'hatch';
+  isSw?: boolean;
 }
 
 /** Shows a notification right now (only if permission was granted). */
@@ -95,7 +100,7 @@ export const showSystemNotification = async (n: SystemNotification): Promise<boo
   try {
     if ((await getNotificationPermission()) !== 'granted') return false;
     if (isNative()) {
-      await ensureChannels();
+      await ensureChannels(n.isSw);
       await LocalNotifications.schedule({
         notifications: [
           {
@@ -131,7 +136,7 @@ const SCHEDULED_KEY = 'kukutrack_scheduled_reminders';
  * the app is closed. Previous reminders from this app are replaced each time, so edits and
  * deletes are always reflected.
  */
-export const syncScheduledReminders = async (reminders: ScheduledReminder[]): Promise<number> => {
+export const syncScheduledReminders = async (reminders: ScheduledReminder[], isSw = false): Promise<number> => {
   if (!isNative()) return 0;
   try {
     // Remove what we scheduled before
@@ -152,7 +157,7 @@ export const syncScheduledReminders = async (reminders: ScheduledReminder[]): Pr
       return 0;
     }
 
-    await ensureChannels();
+    await ensureChannels(isSw);
     const items = future.map((r) => ({
       id: hashId(r.key),
       title: r.title,

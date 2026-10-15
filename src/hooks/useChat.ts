@@ -51,10 +51,10 @@ export const useChat = ({ userId, isAdmin, enabled, isSw, nameOf, openThread, on
       const title = nameOfRef.current(m.thread_user_id);
       pushBanner({ title, body: m.body, kind: 'message', onOpen: () => onOpenRef.current(m.thread_user_id) });
       if (document.visibilityState === 'hidden') {
-        void showSystemNotification({ id: `dm:${m.id}`, title, body: m.body });
+        void showSystemNotification({ id: `dm:${m.id}`, title, body: m.body, isSw });
       }
     },
-    [userId, pushBanner]
+    [userId, isSw, pushBanner]
   );
 
   const load = useCallback(async () => {

@@ -112,7 +112,7 @@ export const useNewsNotifications = ({ news, userId, enabled, isSw, onOpen, isNe
         ? `Una ujumbe ${fresh.length} ambao haujasomwa`
         : `You have ${fresh.length} unread message${fresh.length === 1 ? '' : 's'}`;
       pushBanner({ title, body, kind: 'message', onOpen: () => onOpenRef.current() });
-      if (hidden) void showSystemNotification({ id: `summary:${fresh[0].id}`, title, body });
+      if (hidden) void showSystemNotification({ id: `summary:${fresh[0].id}`, title, body, isSw });
       return;
     }
 
@@ -123,7 +123,7 @@ export const useNewsNotifications = ({ news, userId, enabled, isSw, onOpen, isNe
         kind: 'message',
         onOpen: () => onOpenRef.current(),
       });
-      if (hidden) void showSystemNotification({ id: `news:${n.id}`, title: n.title, body: n.content });
+      if (hidden) void showSystemNotification({ id: `news:${n.id}`, title: n.title, body: n.content, isSw });
     }
   }, [items, unread, userId, enabled, isSw, pushBanner, seen]);
 

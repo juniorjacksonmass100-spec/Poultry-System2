@@ -52,14 +52,14 @@ export const useChangeRequests = ({ userId, isAdmin, enabled, isSw, nameOf, onMy
         const label = r.field === 'email' ? (isSw ? 'barua pepe' : 'email') : r.field === 'phone' ? (isSw ? 'namba ya simu' : 'phone number') : isSw ? 'jina' : 'name';
         const body = `${nameOfRef.current(r.user_id)}: ${label} → ${r.new_value}`;
         pushBanner({ title, body, kind: 'info', onOpen: () => adminRef.current() });
-        if (hidden) void showSystemNotification({ id: `req:${r.id}`, title, body });
+        if (hidden) void showSystemNotification({ id: `req:${r.id}`, title, body, isSw });
       }
 
       if (r.user_id === userId && before === 'pending' && r.status !== 'pending') {
         const title = r.status === 'approved' ? (isSw ? 'Mabadiliko yamekubaliwa' : 'Change approved') : isSw ? 'Mabadiliko hayakukubaliwa' : 'Change not approved';
         const body = r.status === 'approved' ? r.new_value : r.admin_note || (isSw ? 'Wasiliana na msimamizi.' : 'Ask the admin for details.');
         pushBanner({ title, body, kind: 'info' });
-        if (hidden) void showSystemNotification({ id: `req:${r.id}`, title, body });
+        if (hidden) void showSystemNotification({ id: `req:${r.id}`, title, body, isSw });
         if (r.status === 'approved') approvedRef.current();
       }
     }

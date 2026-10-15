@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Bell, Egg, X } from 'lucide-react';
 
 export type BannerKind = 'message' | 'hatch' | 'info';
@@ -30,8 +30,18 @@ const MAX_VISIBLE = 3;
  */
 export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [isSw, setIsSw] = useState(() => localStorage.getItem('kukutrack_lang') === 'sw');
   const counter = useRef(0);
   const touchStartY = useRef<number | null>(null);
+
+  useEffect(() => {
+    const updateLanguage = (event: Event) => {
+      setIsSw((event as CustomEvent<string>).detail === 'sw');
+      setBanners([]);
+    };
+    window.addEventListener('kukutrack:language-changed', updateLanguage);
+    return () => window.removeEventListener('kukutrack:language-changed', updateLanguage);
+  }, []);
 
   const dismiss = useCallback((id: number) => {
     setBanners((prev) => prev.filter((b) => b.id !== id));
@@ -93,7 +103,7 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="text-sm font-bold truncate">{b.title}</span>
-                  <span className="text-[10px] text-white/60 shrink-0">now</span>
+                  <span className="text-[10px] text-white/60 shrink-0">{isSw ? 'sasa hivi' : 'now'}</span>
                 </span>
                 <span className="block text-xs text-white/85 leading-snug line-clamp-2 break-words">{b.body}</span>
               </span>
@@ -102,7 +112,7 @@ export const BannerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               type="button"
               onClick={() => dismiss(b.id)}
               className="shrink-0 w-8 h-8 -mr-1 flex items-center justify-center rounded-full text-white/60 hover:text-white"
-              aria-label="Dismiss"
+              aria-label={isSw ? 'Funga' : 'Dismiss'}
             >
               <X className="w-4 h-4" />
             </button>

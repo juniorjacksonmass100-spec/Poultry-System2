@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BroodingRecord } from '../types';
 import { useBanner } from '../context/BannerContext';
-import { hatchCountdown, parseLocalDate } from '../lib/brooding';
+import { hatchCountdown, localDateISO, parseLocalDate } from '../lib/brooding';
 import { ScheduledReminder, syncScheduledReminders, showSystemNotification } from '../lib/notifications';
+import { poultryTypeLabel } from '../lib/poultryLabels';
 
 export interface HatchAlert {
   id: string;
@@ -15,8 +16,8 @@ export interface HatchAlert {
 const ALERTED_PREFIX = 'kukutrack_hatch_alerted:';
 const REMINDER_HOUR = 8; // 08:00 local time
 
-const label = (rec: BroodingRecord) =>
-  `${rec.poultry_type}${rec.mother_bird_tag ? ` (${rec.mother_bird_tag})` : ''} · ${rec.number_of_eggs.toLocaleString()}`;
+const label = (rec: BroodingRecord, isSw: boolean) =>
+  `${poultryTypeLabel(rec.poultry_type, isSw)}${rec.mother_bird_tag ? ` (${rec.mother_bird_tag})` : ''} · ${rec.number_of_eggs.toLocaleString()}`;
 
 /**
  * Hatch alerts for batches still in the incubator:
@@ -30,8 +31,15 @@ export const useHatchReminders = (
   onOpen: () => void
 ) => {
   const { pushBanner } = useBanner();
+  const [permissionRevision, setPermissionRevision] = useState(0);
   const onOpenRef = useRef(onOpen);
   onOpenRef.current = onOpen;
+
+  useEffect(() => {
+    const refreshPermission = () => setPermissionRevision((revision) => revision + 1);
+    window.addEventListener('kukutrack:notification-permission-changed', refreshPermission);
+    return () => window.removeEventListener('kukutrack:notification-permission-changed', refreshPermission);
+  }, []);
 
   const alerts = useMemo<HatchAlert[]>(() => {
     if (!enabled) return [];
@@ -44,21 +52,21 @@ export const useHatchReminders = (
           id: `hatch-overdue:${rec.id}`,
           level: 0,
           title: isSw ? 'Kutotoa kumechelewa' : 'Hatch overdue',
-          body: isSw ? `${label(rec)}: imechelewa siku ${n}. Kagua mashine.` : `${label(rec)}: ${n} day${n === 1 ? '' : 's'} past the expected date. Check the incubator.`,
+          body: isSw ? `${label(rec, isSw)}: imechelewa siku ${n}. Kagua mashine.` : `${label(rec, isSw)}: ${n} day${n === 1 ? '' : 's'} past the expected date. Check the incubator.`,
         });
       } else if (c.phase === 'today') {
         out.push({
           id: `hatch-today:${rec.id}`,
           level: 0,
           title: isSw ? 'Kutotoa leo!' : 'Hatching today!',
-          body: isSw ? `${label(rec)} yanatarajiwa kutotoa leo.` : `${label(rec)} is due to hatch today.`,
+          body: isSw ? `${label(rec, isSw)} yanatarajiwa kutotoa leo.` : `${label(rec, isSw)} is due to hatch today.`,
         });
       } else if (c.phase === 'upcoming' && c.daysLeft === 1) {
         out.push({
           id: `hatch-tomorrow:${rec.id}`,
           level: 1,
           title: isSw ? 'Kutotoa kesho' : 'Hatching tomorrow',
-          body: isSw ? `${label(rec)} vinatotolewa kesho. Andaa brooder.` : `${label(rec)} hatches tomorrow. Get the brooder ready.`,
+          body: isSw ? `${label(rec, isSw)} yanatarajiwa kutotoa kesho. Andaa sehemu ya kulelea vifaranga.` : `${label(rec, isSw)} hatches tomorrow. Get the brooder ready.`,
         });
       }
     }
@@ -68,7 +76,7 @@ export const useHatchReminders = (
   // One banner per alert per day
   useEffect(() => {
     if (!enabled || alerts.length === 0) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateISO();
     const fresh = alerts.filter((a) => {
       try {
         return localStorage.getItem(`${ALERTED_PREFIX}${today}:${a.id}`) === null;
@@ -92,7 +100,7 @@ export const useHatchReminders = (
       onOpen: () => onOpenRef.current(),
     });
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-      void showSystemNotification({ id: first.id, title: first.title, body: first.body, channel: 'hatch' });
+      void showSystemNotification({ id: first.id, title: first.title, body: first.body, channel: 'hatch', isSw });
     }
   }, [alerts, enabled, isSw, pushBanner]);
 
@@ -121,20 +129,20 @@ export const useHatchReminders = (
             key: `hatch-before:${rec.id}:${rec.expected_hatch_date}`,
             at: dayBefore,
             title: isSw ? 'Kutotoa kesho' : 'Hatching tomorrow',
-            body: isSw ? `${label(rec)} vinatotolewa kesho. Andaa brooder.` : `${label(rec)} hatches tomorrow. Get the brooder ready.`,
+            body: isSw ? `${label(rec, isSw)} yanatarajiwa kutotoa kesho. Andaa sehemu ya kulelea vifaranga.` : `${label(rec, isSw)} hatches tomorrow. Get the brooder ready.`,
           },
           {
             key: `hatch-day:${rec.id}:${rec.expected_hatch_date}`,
             at: hatchDay,
             title: isSw ? 'Kutotoa leo!' : 'Hatching today!',
-            body: isSw ? `${label(rec)} yanatarajiwa kutotoa leo.` : `${label(rec)} is due to hatch today.`,
+            body: isSw ? `${label(rec, isSw)} yanatarajiwa kutotoa leo.` : `${label(rec, isSw)} is due to hatch today.`,
           }
         );
       }
     }
-    void syncScheduledReminders(reminders);
+    void syncScheduledReminders(reminders, isSw);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scheduleKey]);
+  }, [scheduleKey, permissionRevision, isSw]);
 
   return { alerts };
 };

@@ -18,6 +18,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setLanguage = (newLang: Language) => {
     setLang(newLang);
     localStorage.setItem('kukutrack_lang', newLang);
+    window.dispatchEvent(new CustomEvent('kukutrack:language-changed', { detail: newLang }));
   };
 
   useEffect(() => {

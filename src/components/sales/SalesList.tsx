@@ -3,6 +3,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Sale } from '../../types';
+import { poultryTypeLabel } from '../../lib/poultryLabels';
 import { EmptyState } from '../common/EmptyState';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { Plus, Edit3, Trash2, Receipt, Search } from 'lucide-react';
@@ -284,7 +285,7 @@ export const SalesList: React.FC<SalesListProps> = ({
                               isLight ? 'text-slate-500' : 'text-[#729997]'
                             }`}
                           >
-                            ({sale.poultry_type.replace('_', ' ')})
+                            ({poultryTypeLabel(sale.poultry_type, isSw)})
                           </span>
                         )}
                       </td>

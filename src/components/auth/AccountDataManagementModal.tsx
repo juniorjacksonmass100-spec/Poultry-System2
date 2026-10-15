@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import {
@@ -13,6 +13,8 @@ import {
   X,
   RefreshCw,
   Database,
+  Download,
+  Upload,
 } from 'lucide-react';
 import {
   clearPoultryStocks,
@@ -22,6 +24,7 @@ import {
   clearSales,
   clearAllUserData,
 } from '../../services/dataCleanService';
+import { createAccountBackup, restoreAccountBackup } from '../../services/backupService';
 
 interface AccountDataManagementModalProps {
   isOpen: boolean;
@@ -33,20 +36,24 @@ interface AccountDataManagementModalProps {
     expenses: number;
     sales: number;
   };
-  onDataCleared: () => Promise<void>;
+  onDataChanged: () => Promise<void>;
 }
 
 export const AccountDataManagementModal: React.FC<AccountDataManagementModalProps> = ({
   isOpen,
   onClose,
   counts,
-  onDataCleared,
+  onDataChanged,
 }) => {
   const { t, lang } = useLanguage();
   const { theme } = useTheme();
   const [confirmTarget, setConfirmTarget] = useState<string | null>(null);
   const [targetLabel, setTargetLabel] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [pendingBackupFile, setPendingBackupFile] = useState<File | null>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -78,7 +85,7 @@ export const AccountDataManagementModal: React.FC<AccountDataManagementModalProp
         await clearAllUserData();
       }
 
-      await onDataCleared();
+      await onDataChanged();
       setSuccessMsg(isSw ? `Umefanikiwa kufuta ${targetLabel}!` : `Successfully cleared ${targetLabel}!`);
       setTimeout(() => setSuccessMsg(null), 3500);
       setConfirmTarget(null);
@@ -88,6 +95,37 @@ export const AccountDataManagementModal: React.FC<AccountDataManagementModalProp
       setTimeout(() => setErrorMsg(null), 6000);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const createBackup = async () => {
+    setIsBackingUp(true);
+    setErrorMsg(null);
+    try {
+      const result = await createAccountBackup(isSw);
+      setSuccessMsg(result.save.status === 'shared' ? t.backupChooseLocation : `${t.backupCreated} ${result.fileName}`);
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch {
+      setErrorMsg(t.backupFailed);
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
+
+  const restoreBackup = async () => {
+    if (!pendingBackupFile) return;
+    setIsRestoring(true);
+    setErrorMsg(null);
+    try {
+      const result = await restoreAccountBackup(pendingBackupFile);
+      await onDataChanged();
+      setSuccessMsg(`${t.backupRestored} ${result.recordCount.toLocaleString()} ${t.backupRecords}`);
+      setPendingBackupFile(null);
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch {
+      setErrorMsg(t.backupRestoreFailed);
+    } finally {
+      setIsRestoring(false);
     }
   };
 
@@ -190,6 +228,62 @@ export const AccountDataManagementModal: React.FC<AccountDataManagementModalProp
               ? 'Ulifanya makosa wakati wa kuweka data au wakati wa majaribio? Unaweza kufuta salama data zenye makosa kutoka sehemu maalum hapa chini bila kuathiri akaunti yako ya kuingilia.'
               : 'Made a mistake during data entry or testing? You can safely remove erroneous records from specific modules below without affecting your login credentials.'}
           </div>
+
+          <section className={`p-4 border rounded-xl space-y-3 ${isLight ? 'bg-white border-slate-200' : 'bg-[#030e10] border-[#00f5c4]/20'}`}>
+            <div>
+              <h4 className={`text-sm font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{t.backupTitle}</h4>
+              <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-[#8fbdb8]'}`}>{t.backupDescription}</p>
+              <p className={`mt-1 text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-[#719c98]'}`}>{t.backupRestoreDescription}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => void createBackup()}
+                disabled={isBackingUp || isRestoring}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition-colors disabled:opacity-60 ${isLight ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-[#00f5c4] text-[#02211b] hover:bg-[#15ffd1]'}`}
+              >
+                {isBackingUp ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {isBackingUp ? t.backupCreating : t.createBackup}
+              </button>
+              <button
+                type="button"
+                onClick={() => backupInputRef.current?.click()}
+                disabled={isBackingUp || isRestoring}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-xs font-bold transition-colors disabled:opacity-60 ${isLight ? 'border-slate-300 text-slate-800 hover:bg-slate-50' : 'border-[#00f5c4]/35 text-[#00f5c4] hover:bg-[#00f5c4]/10'}`}
+              >
+                <Upload className="h-4 w-4" />
+                {t.chooseBackupFile}
+              </button>
+              <input
+                ref={backupInputRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                aria-label={t.chooseBackupFile}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] || null;
+                  event.currentTarget.value = '';
+                  setErrorMsg(null);
+                  setPendingBackupFile(file);
+                }}
+              />
+            </div>
+            {pendingBackupFile && (
+              <div className={`rounded-xl border p-3 space-y-2 ${isLight ? 'border-amber-300 bg-amber-50' : 'border-amber-400/30 bg-amber-500/10'}`}>
+                <p className={`text-xs font-semibold ${isLight ? 'text-amber-900' : 'text-amber-200'}`}>{t.backupRestoreConfirm}</p>
+                <p className={`text-[11px] break-all ${isLight ? 'text-slate-600' : 'text-[#a4c4c0]'}`}>{pendingBackupFile.name}</p>
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setPendingBackupFile(null)} disabled={isRestoring} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-200">
+                    {t.cancel}
+                  </button>
+                  <button type="button" onClick={() => void restoreBackup()} disabled={isRestoring} className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60">
+                    {isRestoring && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                    {isRestoring ? t.backupRestoring : t.restoreBackup}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
 
           <div className="space-y-2.5">
             {categories.map((cat) => {

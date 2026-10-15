@@ -3,11 +3,13 @@ import { BroodingRecord, BroodingStatus } from '../types';
 import { logActivity } from './activityService';
 import { getActiveOwnerId, requireOwnerId } from '../lib/scope';
 import { deleteRowOrThrow } from '../lib/db';
+import { localDateISO, parseLocalDate } from '../lib/brooding';
 
 export const calculateExpectedHatchDate = (startDate: string, incubationDays: number): string => {
-  const start = new Date(startDate);
+  const start = parseLocalDate(startDate);
+  if (!start) return startDate;
   start.setDate(start.getDate() + incubationDays);
-  return start.toISOString().split('T')[0];
+  return localDateISO(start);
 };
 
 export const fetchBroodingRecords = async (): Promise<BroodingRecord[]> => {
