@@ -3,7 +3,6 @@ import { Scale, TrendingUp, TrendingDown, Pencil, Info, Wallet, Bird, Landmark, 
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Expense, PoultryStock, PoultryValuation, Sale } from '../../types';
-import { poultryTypeLabel } from '../../lib/poultryLabels';
 import {
   calculateNetWorth,
   calculatePricing,
@@ -262,7 +261,7 @@ export const ValuationView: React.FC<ValuationViewProps> = ({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <div className={`text-sm font-bold ${strong}`}>
-                      {p.stock.breed} <span className={`font-medium ${muted}`}>· {poultryTypeLabel(p.stock.poultry_type, isSw)}</span>
+                      {p.stock.breed} <span className={`font-medium ${muted}`}>· {poultryTypeLabel(p.stock.poultry_type)}</span>
                     </div>
                     <div className={`text-[11px] ${muted}`}>
                       {p.liveBirds.toLocaleString()} {isSw ? 'ndege' : 'birds'} · {p.ageDays} {isSw ? 'siku shambani' : 'days on the farm'}

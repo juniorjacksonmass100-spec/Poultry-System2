@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Sale, PoultryStock } from '../../types';
-import { poultryTypeLabel } from '../../lib/poultryLabels';
 import { X, AlertCircle } from 'lucide-react';
 
 import { productLabel, paymentLabel, poultryTypeLabel } from '../../lib/labels';
@@ -225,7 +224,7 @@ export const SaleModal: React.FC<SaleModalProps> = ({
               >
                 {poultryStocks.map((stock) => (
                   <option key={stock.id} value={stock.id}>
-                    {stock.breed} ({poultryTypeLabel(stock.poultry_type, isSw)}) · {isSw ? 'Waliopo' : 'Available'}: {stock.current_quantity}
+                    {stock.breed} ({poultryTypeLabel(stock.poultry_type)}) · {isSw ? 'Waliopo' : 'Available'}: {stock.current_quantity}
                   </option>
                 ))}
               </select>

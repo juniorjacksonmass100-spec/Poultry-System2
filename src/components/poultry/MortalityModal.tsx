@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { PoultryStock } from '../../types';
-import { poultryTypeLabel } from '../../lib/poultryLabels';
 import { X, AlertCircle } from 'lucide-react';
 
 import { poultryTypeLabel } from '../../lib/labels';
@@ -87,7 +86,7 @@ export const MortalityModal: React.FC<MortalityModalProps> = ({
               {t.recordMortality}
             </h3>
             <p className={`text-xs mt-0.5 ${isLight ? 'text-teal-700' : 'text-[#00f5c4]'}`}>
-              {stock.breed} ({poultryTypeLabel(stock.poultry_type, isSw)}) · {isSw ? 'Waliopo' : 'Available'}: {stock.current_quantity}
+              {stock.breed} ({poultryTypeLabel(stock.poultry_type)}) · {isSw ? 'Waliopo' : 'Available'}: {stock.current_quantity}
             </p>
           </div>
           <button

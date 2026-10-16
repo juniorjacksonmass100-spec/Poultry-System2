@@ -6,7 +6,6 @@ import { PoultryStock } from '../../types';
 import { EmptyState } from '../common/EmptyState';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { Search, Plus, Skull, Edit3, Trash2, Bird } from 'lucide-react';
-import { poultryTypeLabel } from '../../lib/poultryLabels';
 
 import { poultryTypeLabel } from '../../lib/labels';
 interface PoultryStockListProps {
@@ -37,9 +36,8 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
 
   const filteredStocks = stocks.filter((stock) => {
     const matchesSearch =
-      poultryTypeLabel(stock.poultry_type, isSw).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.poultry_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       poultryTypeLabel(stock.poultry_type).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      stock.poultry_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (stock.source && stock.source.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -205,7 +203,7 @@ export const PoultryStockList: React.FC<PoultryStockListProps> = ({
                             isLight ? 'text-slate-900' : 'text-white'
                           }`}
                         >
-                          {poultryTypeLabel(stock.poultry_type, isSw)}
+                          {poultryTypeLabel(stock.poultry_type)}
                         </div>
                         <div
                           className={`text-[11px] font-mono ${
