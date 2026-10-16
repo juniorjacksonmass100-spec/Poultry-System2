@@ -1,0 +1,6 @@
+{
+  "name": "KukuTrack Poultry Business Management",
+  "description": "Production-ready poultry business management platform for flock inventory, egg production, brooding, feed expenses, sales, and financial reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

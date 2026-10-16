@@ -1,0 +1,25 @@
+import { supabase, isSupabaseConfigured } from './supabase';
+
+import { tr } from './locale';
+/**
+ * Deletes one row and PROVES it was deleted.
+ * Supabase silently deletes 0 rows when the row is missing or you lack permission;
+ * that must never look like success.
+ */
+export const deleteRowOrThrow = async (table: string, id: string): Promise<void> => {
+  if (!isSupabaseConfigured || !supabase) throw new Error(tr('Database not configured', 'Hifadhidata haijawekwa.'));
+
+  const { data, error } = await supabase.from(table).delete().eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error(tr('Nothing was deleted. The record may already be gone, or you do not have permission.', 'Hakuna kilichofutwa. Kumbukumbu inaweza kuwa tayari imeondolewa, au huna ruhusa.'));
+  }
+};
+
+/** Turns any thrown value into a readable message. */
+export const errorMessage = (err: unknown, fallback = tr('Something went wrong.', 'Kuna tatizo limetokea.')): string => {
+  if (!err) return fallback;
+  if (typeof err === 'string') return err;
+  const anyErr = err as { message?: string; error_description?: string };
+  return anyErr.message || anyErr.error_description || fallback;
+};

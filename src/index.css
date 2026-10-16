@@ -1,0 +1,344 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --neon-aqua: #00f5c4;
+    --neon-aqua-glow: rgba(0, 245, 196, 0.35);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #020708;
+    color: #ffffff;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: contain;
+  }
+}
+
+html { scroll-behavior: smooth; }
+.kuku-app-shell { min-height: 100svh; min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom); }
+
+/* Neon Glow Utilities */
+.neon-glow {
+  box-shadow: 0 4px 16px rgba(0, 80, 70, 0.12);
+}
+
+.neon-glow-sm {
+  box-shadow: 0 2px 10px rgba(0, 80, 70, 0.1);
+}
+
+.neon-glow-lg {
+  box-shadow: 0 6px 20px rgba(0, 80, 70, 0.16);
+}
+
+.neon-border {
+  border-color: rgba(0, 245, 196, 0.3);
+}
+
+.neon-border:hover {
+  border-color: rgba(0, 245, 196, 0.6);
+}
+
+.neon-text {
+  color: #00f5c4;
+  text-shadow: none;
+}
+
+/* Custom scrollbars for data tables and sidebars with aqua tint */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #060d0d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 245, 196, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 245, 196, 0.45);
+}
+
+.tabular-numbers {
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ==========================================================================
+   TEXT SIZE (Small / Medium / Large) - works on the website and in the app.
+   Tailwind builds every text-xs / text-sm / ... class from these variables, so
+   changing them here resizes the text everywhere without touching layout.
+   Medium (the default) is Tailwind's normal sizing.
+   ========================================================================== */
+html[data-fs="small"] {
+  --text-xs: 0.675rem;
+  --text-sm: 0.7875rem;
+  --text-base: 0.9rem;
+  --text-lg: 1.0125rem;
+  --text-xl: 1.125rem;
+  --text-2xl: 1.35rem;
+  --text-3xl: 1.6875rem;
+  --text-4xl: 2.025rem;
+}
+html[data-fs="large"] {
+  --text-xs: 0.9rem;
+  --text-sm: 1.05rem;
+  --text-base: 1.2rem;
+  --text-lg: 1.35rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.8rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 2.7rem;
+}
+/* The app also uses a few fixed pixel sizes; scale those too */
+html[data-fs="small"] [class*="text-[9px]"]  { font-size: 8.1px; }
+html[data-fs="small"] [class*="text-[10px]"] { font-size: 9px; }
+html[data-fs="small"] [class*="text-[11px]"] { font-size: 9.9px; }
+html[data-fs="large"] [class*="text-[9px]"]  { font-size: 10.8px; }
+html[data-fs="large"] [class*="text-[10px]"] { font-size: 12px; }
+html[data-fs="large"] [class*="text-[11px]"] { font-size: 13.2px; }
+/* Form fields do not inherit page text size by default */
+input, select, textarea { font-size: inherit; }
+
+/* ==========================================================================
+   NEWS TICKER - constant reading speed (duration is set from the text length)
+   ========================================================================== */
+@keyframes kuku-ticker {
+  from { transform: translateX(var(--ticker-from, 100%)); }
+  to   { transform: translateX(var(--ticker-to, -100%)); }
+}
+.kuku-ticker-track {
+  animation-name: kuku-ticker;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* ==========================================================================
+   BUTTON PRESS FEEL - every button reacts to touch and click
+   ========================================================================== */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition-property: color, background-color, border-color, box-shadow, scale, filter, opacity, transform;
+  transition-duration: 200ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
+  scale: 0.97;
+  filter: brightness(1.02);
+  transition-duration: 70ms;
+}
+@media (hover: hover) {
+  button:not(:disabled):hover { filter: brightness(1.07); }
+}
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+button:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid var(--neon-aqua);
+  outline-offset: 2px;
+}
+
+.kuku-ripple {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0.28;
+  scale: 0;
+  animation: kuku-ripple 560ms ease-out forwards;
+}
+@keyframes kuku-ripple {
+  to { scale: 1; opacity: 0; }
+}
+
+/* Refresh icon spin */
+@keyframes kuku-spin { to { transform: rotate(360deg); } }
+.kuku-spin { animation: kuku-spin 0.8s linear infinite; }
+
+/* ==========================================================================
+   ENTRANCE ANIMATIONS - pages, cards, dialogs, menus, toasts
+   ========================================================================== */
+@keyframes kuku-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes kuku-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kuku-zoom-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes kuku-slide-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes kuku-toast-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* backwards (not both): no transform is left behind after the animation, so full-screen dialogs inside a tab really cover the whole screen */
+.kuku-tab-enter { animation: kuku-fade-up 300ms ease-out backwards; }
+.kuku-toast { animation: kuku-toast-in 220ms ease-out both; }
+
+/* The dialogs in this app already use these class names */
+.animate-in { animation: kuku-fade-in 160ms ease-out both; }
+.animate-in.zoom-in-95 { animation-name: kuku-zoom-in; }
+.animate-in.slide-in-from-left { animation-name: kuku-slide-left; animation-duration: 220ms; }
+
+/* Gentle lift on cards that contain data */
+@media (hover: hover) {
+  .kuku-lift { transition: translate 180ms ease, box-shadow 180ms ease; }
+  .kuku-lift:hover { translate: 0 -2px; }
+}
+
+/* Prevent mobile Safari from zooming into small form fields on focus. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea { font-size: max(16px, 1em); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .kuku-ticker-track { animation: none !important; }
+}
+
+/* WhatsApp-style notification banner */
+@keyframes kuku-banner-in {
+  from { opacity: 0; transform: translateY(-24px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.kuku-banner { animation: kuku-banner-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+
+/* Book reader: nothing from it can be printed or selected */
+@media print {
+  .kuku-secure-reader, .kuku-secure-reader * { display: none !important; }
+}
+.kuku-secure-reader, .kuku-secure-reader * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none !important;
+}
+
+/* ==========================================================================
+   iOS-STYLE LOOK
+   Rounder shapes, frosted-glass bars, bottom sheets and springy motion.
+   ========================================================================== */
+:root {
+  /* every rounded-* class in the app gets the softer iPhone-like curves */
+  --radius-md: 0.7rem;
+  --radius-lg: 0.95rem;
+  --radius-xl: 1.2rem;
+  --radius-2xl: 1.6rem;
+  --radius-3xl: 2.1rem;
+  /* the "spring": a quick overshoot and settle, like iOS */
+  --kuku-spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --kuku-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { overscroll-behavior-y: none; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+/* Frosted glass for the top bar and the bottom tab bar */
+.kuku-glass {
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  backdrop-filter: saturate(180%) blur(22px);
+}
+
+/* Buttons: press down, then spring back */
+button, [role="button"] {
+  transition-timing-function: var(--kuku-spring);
+  transition-duration: 320ms;
+}
+button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
+  scale: 0.95;
+  transition-duration: 90ms;
+  transition-timing-function: var(--kuku-smooth);
+}
+
+/* Bottom tab bar: the highlight pill pops in */
+.kuku-tab .kuku-tab-pill { transition: background-color 260ms var(--kuku-smooth), scale 320ms var(--kuku-spring); }
+.kuku-tab[aria-current="page"] .kuku-tab-pill { animation: kuku-pill-pop 380ms var(--kuku-spring) both; }
+.kuku-tab:active .kuku-tab-pill { scale: 0.88; }
+@keyframes kuku-pill-pop { from { scale: 0.7; opacity: 0.4; } to { scale: 1; opacity: 1; } }
+
+/* Screens glide in and their cards arrive one after another */
+.kuku-tab-enter { animation: kuku-fade-up 420ms var(--kuku-smooth) backwards; }
+@keyframes kuku-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+.kuku-tab-enter > * > :nth-child(1) { animation: kuku-rise 480ms var(--kuku-smooth) 0ms backwards; }
+.kuku-tab-enter > * > :nth-child(2) { animation: kuku-rise 480ms var(--kuku-smooth) 50ms backwards; }
+.kuku-tab-enter > * > :nth-child(3) { animation: kuku-rise 480ms var(--kuku-smooth) 100ms backwards; }
+.kuku-tab-enter > * > :nth-child(4) { animation: kuku-rise 480ms var(--kuku-smooth) 150ms backwards; }
+.kuku-tab-enter > * > :nth-child(5) { animation: kuku-rise 480ms var(--kuku-smooth) 200ms backwards; }
+.kuku-tab-enter > * > :nth-child(6) { animation: kuku-rise 480ms var(--kuku-smooth) 250ms backwards; }
+.kuku-tab-enter > * > :nth-child(n+7) { animation: kuku-rise 480ms var(--kuku-smooth) 300ms backwards; }
+
+/* Dialogs: a soft spring pop on computers ... */
+.animate-in { animation-duration: 260ms; animation-timing-function: var(--kuku-smooth); }
+.animate-in.zoom-in-95 { animation-name: kuku-zoom-in; animation-timing-function: var(--kuku-spring); animation-duration: 340ms; }
+.animate-in.slide-in-from-left { animation-timing-function: var(--kuku-smooth); animation-duration: 340ms; }
+
+/* ... and on phones every dialog becomes a bottom sheet that slides up, with a grab handle */
+@keyframes kuku-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes kuku-scrim { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 640px) {
+  .fixed.inset-0.items-center.justify-center {
+    align-items: flex-end !important;
+    padding: 0 !important;
+    animation: kuku-scrim 240ms ease-out both;
+  }
+  .fixed.inset-0.items-center.justify-center > .animate-in {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    max-height: 92dvh;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-top-left-radius: 1.75rem !important;
+    border-top-right-radius: 1.75rem !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: kuku-sheet-up 460ms var(--kuku-smooth) both !important;
+  }
+  .fixed.inset-0.items-center.justify-center > .animate-in::before {
+    content: '';
+    display: block;
+    width: 2.5rem;
+    height: 0.3rem;
+    border-radius: 9999px;
+    background: rgba(128, 150, 150, 0.45);
+    margin: 0.55rem auto 0;
+    flex-shrink: 0;
+  }
+}
+
+/* Switches and sliders move with a spring */
+[role="switch"] > span { transition: transform 320ms var(--kuku-spring), width 200ms ease; }
+[role="switch"]:active > span { width: 1.9rem; }
+
+/* Lists feel tappable */
+@media (hover: none) {
+  tbody tr:active { background: rgba(0, 245, 196, 0.06); }
+}
+
+/* Thin, quiet scrollbars like iOS */
+* { scrollbar-width: thin; scrollbar-color: rgba(128, 160, 160, 0.4) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(128, 160, 160, 0.4); border-radius: 9999px; }
+::-webkit-scrollbar-track { background: transparent; }
